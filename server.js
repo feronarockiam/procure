@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./db');
+const path = require('path');
 
 const app = express();
 
@@ -19,7 +20,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Connect to MongoDB
 connectDB();
@@ -33,6 +34,11 @@ app.use('/api/enquiries', require('./routes/enquiry.route'));
 app.use('/api/enquiries', require('./routes/enquiry-bulk.route'));
 app.use('/api/users', require('./routes/user.route.js'));
 app.use('/api/notifications', require('./routes/notification.route.js'));
+
+// Serve index.html for the root path
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Health check
 app.get('/api/health', (req, res) => {

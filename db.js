@@ -3,6 +3,8 @@ require('dotenv').config();
 
 const connectDB = async () => {
     try {
+        if (mongoose.connection.readyState >= 1) return;
+
         await mongoose.connect(process.env.MONGODB_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true
@@ -10,7 +12,7 @@ const connectDB = async () => {
         console.log('✅ MongoDB connected successfully');
     } catch (error) {
         console.error('❌ MongoDB connection error:', error.message);
-        process.exit(1);
+        // Don't exit process in serverless environment
     }
 };
 

@@ -22,8 +22,15 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB middleware
+app.use('/api', async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        res.status(500).json({ error: 'Database connection failed' });
+    }
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth.route'));

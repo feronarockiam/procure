@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Precise Procure</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/premium-ui.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="flex items-center gap-2 logo-text">
+                    <i class="ph ph-gauge" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    <span>Precise Procure</span>
+                </div>
+                <button class="toggle-btn" onclick="toggleSidebar()">
+                    <i class="ph ph-list"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin.html" class="nav-item active">
+                    <i class="ph ph-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;"
+                    class="menu-label">Master Data</div>
+                <a href="/masters.html?type=materials" class="nav-item">
+                    <i class="ph ph-package"></i>
+                    <span>Materials</span>
+                </a>
+                <a href="/masters.html?type=employees" class="nav-item">
+                    <i class="ph ph-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="/masters.html?type=customers" class="nav-item">
+                    <i class="ph ph-user-circle"></i>
+                    <span>Customers</span>
+                </a>
+                <a href="/masters.html?type=vendors" class="nav-item">
+                    <i class="ph ph-storefront"></i>
+                    <span>Vendors</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div
+                        style="width: 32px; height: 32px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+                        <i class="ph ph-user"></i>
+                    </div>
+                    <div class="user-info" style="flex: 1; overflow: hidden;">
+                        <div style="font-weight: 600; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                            id="navUserName">Admin</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Administrator</div>
+                    </div>
+                    <button onclick="logout()" class="toggle-btn" title="Logout">
+                        <i class="ph ph-sign-out"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header mb-4" style="background: transparent; border: none; padding: 0; box-shadow: none;">
+                <div class="flex-between">
+                    <div>
+                        <h1>Dashboard Overview</h1>
+                        <p class="text-muted">Welcome back, here's your daily briefing.</p>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="text-muted" style="font-size: 0.875rem;">
+                            <i class="ph ph-calendar-blank"></i> Today
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Stats (Fixed 5-Column Layout) -->
+            <div class="stats-grid" id="statsGrid"
+                style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Insights & Action Section -->
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+
+                <!-- Strategic Insights -->
+                <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--primary-light);">
+                    <div
+                        style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 1.5rem; color: white;">
+                        <div class="flex-between mb-2">
+                            <h3 style="color: white; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="ph ph-lightbulb"></i> Strategic Insights
+                            </h3>
+                        </div>
+                        <p style="opacity: 0.9; font-size: 0.9rem; margin: 0;">Key performance indicators and actionable
+                            intelligence.</p>
+                    </div>
+                    <div id="aiInsightsList" style="padding: 1.5rem;">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+
+                <!-- Profitability & Workload -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+                    <!-- Profit Card -->
+                    <div class="card">
+                        <div class="flex-between mb-3">
+                            <h3 class="card-title"><i class="ph ph-currency-inr"></i> Profitability Analysis</h3>
+                            <span class="badge badge-success" id="profitMarginBadge">0% Margin</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                            <div class="stat-card" style="background: var(--bg-hover); padding: 1rem;">
+                                <div class="text-muted text-xs">Total Revenue</div>
+                                <div class="text-lg font-bold" id="totalRevenue">₹0</div>
+                            </div>
+                            <div class="stat-card" style="background: rgba(239, 68, 68, 0.1); padding: 1rem;">
+                                <div class="text-muted text-xs">Total Cost (Vendor+Freight)</div>
+                                <div class="text-lg font-bold text-danger" id="totalCost">₹0</div>
+                            </div>
+                            <div class="stat-card" style="background: rgba(16, 185, 129, 0.1); padding: 1rem;">
+                                <div class="text-muted text-xs">Net Profit</div>
+                                <div class="text-lg font-bold text-success" id="netProfit">₹0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Workload Card -->
+                    <div class="card" style="flex: 1;">
+                        <h3 class="card-title mb-3"><i class="ph ph-users"></i> Team Workload</h3>
+                        <div id="workloadList" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Detailed Analytics Row -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- Pipeline Visualizer -->
+                <div class="card" style="padding: 1.5rem;" id="insightsBreakdown">
+                    <div class="spinner"></div>
+                </div>
+
+                <!-- Top Products -->
+                <div class="card" style="padding: 1.5rem;">
+                    <h4 class="mb-3"><i class="ph ph-trend-up"></i> Top Products</h4>
+                    <div id="topProductsList">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Enquiries Table -->
+            <div class="card" style="padding: 1.5rem;">
+                <div class="flex-between mb-3">
+                    <h3 class="mb-0"><i class="ph ph-table"></i> Recent Enquiries</h3>
+                    <div class="flex gap-2">
+                        <input type="text" id="enquirySearch" placeholder="Search enquiries..."
+                            style="padding: 0.5rem; font-size: 0.875rem; width: 250px;" onkeyup="filterEnquiries()">
+                        <select id="statusFilter" style="padding: 0.5rem; font-size: 0.875rem;"
+                            onchange="filterEnquiries()">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="vendor_quoted">Quoted</option>
+                            <option value="sales_priced">Priced</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table" id="enquiriesTable">
+                        <thead>
+                            <tr>
+                                <th>Enquiry #</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Queries</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="enquiriesTableBody">
+                            <tr>
+                                <td colspan="6" class="text-center">
+                                    <div class="spinner"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Enquiry Details Modal -->
+            <div id="detailsModal" class="modal">
+                <div class="modal-content" style="max-width: 900px; width: 95%;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="detailsModalTitle">Enquiry Details</h2>
+                        <button class="close-btn" onclick="closeDetailsModal()">&times;</button>
+                    </div>
+                    <div id="detailsModalBody" style="padding: 1.5rem;">
+                        <!-- Content dynamically loaded -->
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <style>
+            /* Responsive Grid Fixes */
+            @media (max-width: 1200px) {
+                #statsGrid {
+                    grid-template-columns: repeat(3, 1fr) !important;
+                }
+            }
+
+            @media (max-width: 768px) {
+                #statsGrid {
+                    grid-template-columns: repeat(2, 1fr) !important;
+                }
+
+                div[style*="grid-template-columns: 1.5fr 1fr"],
+                div[style*="grid-template-columns: 1fr 1fr"] {
+                    grid-template-columns: 1fr !important;
+                }
+            }
+        </style>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/admin.js"></script>
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+
+            // Save state
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        // Restore state
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            }
+
+            const user = getUser();
+            if (user) {
+                document.getElementById('navUserName').textContent = user.name;
+            }
+        });
+    </script>
+    <script src="/js/doodle-bg.js"></script>
+</body>
+
+</html>

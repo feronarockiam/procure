@@ -8,434 +8,657 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
+            min-height: 100vh;
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f0f4f8 0%, #dbeafe 100%);
+            background: linear-gradient(145deg, #EFF6FF 0%, #F8F4FF 40%, #EFF6FF 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
 
-        /* Centered Container */
-        .login-container {
+        /* Tone down doodle for this page */
+        .doodle-item { opacity: 0.05 !important; }
+
+        /* ── Page wrapper ── */
+        .login-wrapper {
             position: relative;
             z-index: 1;
+            width: min(1000px, calc(100vw - 2rem));
+            min-height: 580px;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 1rem;
-        }
-
-        /* Glass Card */
-        .glass-card {
-            width: 100%;
-            max-width: 420px;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 24px;
-            padding: 2.5rem;
+            border-radius: 28px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(48px);
+            -webkit-backdrop-filter: blur(48px);
+            border: 1px solid rgba(255, 255, 255, 0.85);
             box-shadow:
-                0 20px 40px rgba(0, 0, 0, 0.05),
-                0 1px 3px rgba(0, 0, 0, 0.05);
-            animation: slideUpFade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+                0 40px 80px rgba(59, 130, 246, 0.10),
+                0 8px 24px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            animation: cardIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
-        @keyframes slideUpFade {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Logo Section */
-        .logo-section {
-            text-align: center;
-            margin-bottom: 2rem;
-            animation: fadeIn 0.8s ease-out 0.2s backwards;
+        /* ══ LEFT — Brand Panel ══ */
+        .brand-panel {
+            width: 42%;
+            flex-shrink: 0;
+            background: linear-gradient(150deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.06) 100%);
+            border-right: 1px solid rgba(255,255,255,0.7);
+            padding: 3.5rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
         }
 
-        .logo-icon-wrapper {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, var(--primary) 0%, #2563EB 100%);
-            border-radius: 16px;
+        /* decorative blobs */
+        .brand-panel::before,
+        .brand-panel::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .brand-panel::before {
+            width: 320px; height: 320px;
+            background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+            top: -80px; right: -80px;
+        }
+        .brand-panel::after {
+            width: 260px; height: 260px;
+            background: radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%);
+            bottom: -60px; left: -60px;
+        }
+
+        .brand-top { position: relative; z-index: 1; }
+
+        .brand-logo {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin: 0 auto 1rem;
-            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
-            color: white;
-            font-size: 32px;
+            gap: 0.75rem;
+            margin-bottom: 2.5rem;
         }
-
-        .logo-section h1 {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: var(--text-dark);
-            margin: 0 0 0.5rem;
+        .brand-logo-icon {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #3B9FD9 0%, #2563EB 100%);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 22px;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.22);
+        }
+        .brand-logo-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
             letter-spacing: -0.02em;
         }
 
-        .logo-section p {
-            color: var(--text-muted);
+        .brand-headline {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.9rem;
+        }
+        .brand-headline span {
+            background: linear-gradient(120deg, #3B9FD9, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brand-subtext {
             font-size: 0.9rem;
-            margin: 0;
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 2rem;
         }
 
-        /* Form Styles */
-        .form-group {
+        .feature-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 0.85rem;
+            color: #334155;
+            font-weight: 500;
+        }
+        .feature-icon {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .feature-icon.blue  { background: rgba(59,130,246,0.12); color: #2563eb; }
+        .feature-icon.violet{ background: rgba(139,92,246,0.12); color: #7c3aed; }
+        .feature-icon.green { background: rgba(16,185,129,0.12); color: #059669; }
+
+        /* stat mini-cards */
+        .stat-cards {
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+            z-index: 1;
+        }
+        .stat-card {
+            flex: 1;
+            background: rgba(255,255,255,0.65);
+            border: 1px solid rgba(255,255,255,0.9);
+            border-radius: 14px;
+            padding: 0.85rem 1rem;
+            backdrop-filter: blur(20px);
+        }
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 0.2rem;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* ══ RIGHT — Form Panel ══ */
+        .form-panel {
+            flex: 1;
+            padding: 3.5rem 3.5rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: rgba(255,255,255,0.5);
+            overflow-y: auto;
+        }
+
+        .form-header {
+            margin-bottom: 2rem;
+        }
+        .form-header h2 {
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.3rem;
+        }
+        .form-header p {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        /* Error */
+        .error-message {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.18);
+            color: #dc2626;
+            padding: 0.7rem 1rem;
+            border-radius: 10px;
             margin-bottom: 1.25rem;
-            animation: fadeIn 0.8s ease-out 0.4s backwards;
+            font-size: 0.85rem;
+            display: none;
+            font-weight: 500;
+        }
+        .error-message.active {
+            display: block;
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%,90% { transform: translate3d(-1px,0,0); }
+            20%,80%  { transform: translate3d(2px,0,0); }
+            30%,50%,70% { transform: translate3d(-3px,0,0); }
+            40%,60%  { transform: translate3d(3px,0,0); }
         }
 
+        /* Fields */
+        .form-group {
+            margin-bottom: 1.1rem;
+        }
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            font-size: 0.9rem;
-            color: var(--text-dark);
+            margin-bottom: 0.45rem;
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: #334155;
+            letter-spacing: 0.01em;
         }
-
-        .input-icon-wrapper {
+        .input-wrap {
             position: relative;
         }
-
         .input-icon {
             position: absolute;
-            left: 1rem;
+            left: 0.9rem;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 1.25rem;
+            color: #cbd5e1;
+            font-size: 1.1rem;
+            pointer-events: none;
             transition: color 0.2s;
         }
-
         .modern-input {
             width: 100%;
-            padding: 0.875rem 1rem 0.875rem 3rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 1rem;
-            transition: all 0.2s;
-            background: rgba(255, 255, 255, 0.8);
+            padding: 0.8rem 1rem 0.8rem 2.6rem;
+            background: rgba(255,255,255,0.8);
+            border: 1.5px solid #e2e8f0;
+            border-radius: 11px;
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            color: #0f172a;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
         }
-
+        .modern-input::placeholder { color: #cbd5e1; }
         .modern-input:focus {
-            background: #fff;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(59, 159, 217, 0.1);
             outline: none;
+            background: #fff;
+            border-color: #3B9FD9;
+            box-shadow: 0 0 0 3px rgba(59,159,217,0.12);
         }
+        .modern-input:focus ~ .input-icon { color: #3B9FD9; }
 
-        .modern-input:focus+.input-icon {
-            color: var(--primary);
-        }
+        /* Reverse icon z-order so focus selector works */
+        .input-wrap { display: flex; flex-direction: column; }
+        .input-wrap .modern-input { order: 1; }
+        .input-wrap .input-icon { order: 2; }
+        /* Revert layout: use position absolute (already set) */
+        .input-wrap { display: block; position: relative; }
 
-        .form-actions {
+        .form-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            font-size: 0.875rem;
-            animation: fadeIn 0.8s ease-out 0.5s backwards;
+            margin-bottom: 1.4rem;
+            margin-top: 0.1rem;
         }
 
-        .forgot-password {
-            color: var(--primary);
+        /* Checkbox */
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.82rem;
+            color: #64748b;
+            cursor: pointer;
+            user-select: none;
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: 15px; height: 15px;
+            accent-color: #3B9FD9;
+            border-radius: 4px;
+        }
+
+        .forgot-link {
+            font-size: 0.82rem;
+            color: #3B9FD9;
             text-decoration: none;
             font-weight: 600;
         }
+        .forgot-link:hover { text-decoration: underline; }
 
-        .btn-block {
+        /* Sign In button */
+        .btn-signin {
             width: 100%;
-            padding: 1rem;
-            font-size: 1rem;
-            border-radius: 12px;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.15);
-            transition: all 0.2s;
-            animation: fadeIn 0.8s ease-out 0.6s backwards;
-        }
-
-        .btn-block:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 25px rgba(37, 99, 235, 0.25);
-        }
-
-        /* Demo Credentials */
-        .demo-credentials-glass {
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
-            animation: fadeIn 0.8s ease-out 0.8s backwards;
-        }
-
-        .credential-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            justify-content: center;
-        }
-
-        .chip {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.6);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            border-radius: 2rem;
-            font-size: 0.8125rem;
+            padding: 0.875rem;
+            background: linear-gradient(135deg, #3B9FD9 0%, #2563EB 100%);
+            color: white;
+            border: none;
+            border-radius: 11px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: transform 0.18s, box-shadow 0.18s;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.22);
+            letter-spacing: 0.01em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn-signin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(37,99,235,0.3);
+        }
+        .btn-signin:active { transform: translateY(0); }
+
+        /* ── Demo creds ── */
+        .demo-section {
+            margin-top: 1.75rem;
+            padding-top: 1.4rem;
+            border-top: 1px solid rgba(0,0,0,0.06);
+        }
+        .demo-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+        .demo-groups {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+        .demo-row {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            color: var(--text-dark);
-            font-weight: 500;
         }
-
+        .demo-row-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            width: 62px;
+            flex-shrink: 0;
+        }
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .chip {
+            padding: 0.32rem 0.75rem;
+            background: rgba(255,255,255,0.7);
+            border: 1.5px solid rgba(0,0,0,0.07);
+            border-radius: 100px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.16s cubic-bezier(0.4,0,0.2,1);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: #334155;
+            font-weight: 500;
+            white-space: nowrap;
+        }
         .chip:hover {
             background: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            border-color: var(--primary);
-            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
-
-        .chip.active {
-            background: var(--primary-light);
-            color: var(--primary);
-            border-color: var(--primary);
+        .chip-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .error-message {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            padding: 0.75rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            font-size: 0.875rem;
-            display: none;
+        .demo-password {
+            margin-top: 0.65rem;
+            font-size: 0.7rem;
+            color: #cbd5e1;
             text-align: center;
-            font-weight: 500;
+        }
+        .demo-password code {
+            background: rgba(0,0,0,0.04);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.68rem;
         }
 
-        .error-message.active {
-            display: block;
-            animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+        /* ── Stagger animations ── */
+        .brand-logo   { animation: fadeUp 0.6s 0.1s both; }
+        .brand-headline{ animation: fadeUp 0.6s 0.18s both; }
+        .brand-subtext { animation: fadeUp 0.6s 0.24s both; }
+        .feature-list  { animation: fadeUp 0.6s 0.3s both; }
+        .stat-cards    { animation: fadeUp 0.6s 0.38s both; }
+        .form-header   { animation: fadeUp 0.6s 0.22s both; }
+        .form-group    { animation: fadeUp 0.6s 0.3s both; }
+        .form-row      { animation: fadeUp 0.6s 0.36s both; }
+        .btn-signin    { animation: fadeUp 0.6s 0.4s both; }
+        .demo-section  { animation: fadeUp 0.6s 0.48s both; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes shake {
-
-            10%,
-            90% {
-                transform: translate3d(-1px, 0, 0);
+        /* ── Mobile ── */
+        @media (max-width: 700px) {
+            body { align-items: flex-start; padding: 1rem 0; overflow-y: auto; }
+            .login-wrapper { flex-direction: column; min-height: unset; border-radius: 20px; }
+            .brand-panel {
+                width: 100%;
+                padding: 2rem 1.75rem 1.5rem;
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.6);
             }
-
-            20%,
-            80% {
-                transform: translate3d(2px, 0, 0);
-            }
-
-            30%,
-            50%,
-            70% {
-                transform: translate3d(-4px, 0, 0);
-            }
-
-            40%,
-            60% {
-                transform: translate3d(4px, 0, 0);
-            }
-        }
-
-        /* Mobile Optimizations */
-        @media (max-width: 480px) {
-            .glass-card {
-                padding: 1.5rem;
-                border-radius: 20px;
-                background: rgba(255, 255, 255, 0.9);
-            }
-
-            .logo-section h1 {
-                font-size: 1.5rem;
-            }
-
-            .logo-icon-wrapper {
-                width: 56px;
-                height: 56px;
-                font-size: 28px;
-            }
-
-            .modern-input {
-                font-size: 16px;
-                /* Prevent iOS zoom */
-                padding: 0.8rem 1rem 0.8rem 2.8rem;
-            }
-
-            .input-icon {
-                font-size: 1.1rem;
-            }
-
-            .btn-block {
-                padding: 0.875rem;
-            }
+            .brand-headline { font-size: 1.45rem; }
+            .stat-cards { display: none; }
+            .form-panel { padding: 2rem 1.75rem; }
         }
     </style>
 </head>
 
 <body>
-    <!-- Doodle Background Container -->
     <div id="doodle-pattern" class="doodle-pattern"></div>
 
-    <div class="login-container">
-        <div class="glass-card">
-            <div class="logo-section">
-                <div class="logo-icon-wrapper">
-                    <i class="ph ph-hexagon-fill"></i>
+    <div class="login-wrapper">
+
+        <!-- ══ Left: Brand Panel ══ -->
+        <div class="brand-panel">
+            <div class="brand-top">
+                <div class="brand-logo">
+                    <div class="brand-logo-icon">
+                        <i class="ph ph-hexagon-fill"></i>
+                    </div>
+                    <span class="brand-logo-text">Precise Procure</span>
                 </div>
-                <h1>Precise Procure</h1>
-                <p>Material-Centric Procurement System</p>
+
+                <h1 class="brand-headline">Procurement,<br><span>precisely done.</span></h1>
+                <p class="brand-subtext">The end-to-end platform that connects Sales, Sourcing, and Vendors in one seamless workflow.</p>
+
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <span class="feature-icon blue"><i class="ph ph-lightning"></i></span>
+                        End-to-end enquiry workflow
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon violet"><i class="ph ph-handshake"></i></span>
+                        Real-time vendor quotations
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon green"><i class="ph ph-shield-check"></i></span>
+                        Role-based access control
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+
+        <!-- ══ Right: Form Panel ══ -->
+        <div class="form-panel">
+            <div class="form-header">
+                <h2>Welcome back</h2>
+                <p>Sign in to your workspace</p>
             </div>
 
             <div id="errorMessage" class="error-message"></div>
 
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <div class="input-icon-wrapper">
+                    <label for="email">Email address</label>
+                    <div class="input-wrap">
                         <i class="ph ph-envelope input-icon"></i>
-                        <input type="email" id="email" name="email" required placeholder="you@company.com"
-                            class="modern-input">
+                        <input type="email" id="email" name="email" required
+                            placeholder="you@company.com" class="modern-input">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <div class="input-icon-wrapper">
+                    <div class="input-wrap">
                         <i class="ph ph-lock-key input-icon"></i>
-                        <input type="password" id="password" name="password" required placeholder="••••••••"
-                            class="modern-input">
+                        <input type="password" id="password" name="password" required
+                            placeholder="••••••••" class="modern-input">
                     </div>
                 </div>
 
-                <div class="form-actions">
-                    <label class="checkbox-container">
+                <div class="form-row">
+                    <label class="checkbox-label">
                         <input type="checkbox" checked>
-                        <span class="checkmark"></span>
                         Remember me
                     </label>
-                    <a href="#" class="forgot-password">Forgot password?</a>
+                    <a href="#" class="forgot-link">Forgot password?</a>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg btn-block">
+                <button type="submit" class="btn-signin">
                     <span id="loginBtnText">Sign In</span>
-                    <span id="loginSpinner" class="hidden"><i class="ph ph-spinner ph-spin"></i> Signing in...</span>
+                    <span id="loginSpinner" class="hidden"><i class="ph ph-spinner ph-spin"></i> Signing in…</span>
                 </button>
             </form>
 
-            <div class="demo-credentials-glass">
-                <p class="text-muted text-center mb-3" style="font-size: 0.8rem;">Demo Credentials (Click to copy)</p>
-                <div class="credential-chips">
-                    <div class="chip" onclick="fillCreds('admin@procure.com')">
-                        <i class="ph ph-gauge"></i> Admin
+            <!-- Demo credentials -->
+            <div class="demo-section">
+                <div class="demo-label">
+                    <i class="ph ph-cursor-click" style="font-size:0.85rem"></i>
+                    Quick login — click a role
+                </div>
+                <div class="demo-groups">
+                    <div class="demo-row">
+                        <span class="demo-row-label">System</span>
+                        <div class="chips">
+                            <div class="chip" onclick="fillCreds('admin@procure.com', this)" style="--c:#10B981">
+                                <span class="chip-dot" style="background:#10B981"></span>
+                                <i class="ph ph-shield-star" style="color:#10B981;font-size:0.8rem"></i> Admin
+                            </div>
+                        </div>
                     </div>
-                    <div class="chip" onclick="fillCreds('sales1@procure.com')">
-                        <i class="ph ph-user-circle"></i> Sales
+                    <div class="demo-row">
+                        <span class="demo-row-label">Sales</span>
+                        <div class="chips">
+                            <div class="chip" onclick="fillCreds('sales.entry@procure.com', this)" style="--c:#8B5CF6">
+                                <span class="chip-dot" style="background:#8B5CF6"></span>
+                                <i class="ph ph-shopping-cart-simple" style="color:#8B5CF6;font-size:0.8rem"></i> Entry
+                            </div>
+                            <div class="chip" onclick="fillCreds('sales.mgr@procure.com', this)" style="--c:#6D28D9">
+                                <span class="chip-dot" style="background:#6D28D9"></span>
+                                <i class="ph ph-crown-simple" style="color:#6D28D9;font-size:0.8rem"></i> Manager
+                            </div>
+                        </div>
                     </div>
-                    <div class="chip" onclick="fillCreds('sourcing1@procure.com')">
-                        <i class="ph ph-package"></i> Sourcing
+                    <div class="demo-row">
+                        <span class="demo-row-label">Purchase</span>
+                        <div class="chips">
+                            <div class="chip" onclick="fillCreds('purchase.entry@procure.com', this)" style="--c:#F59E0B">
+                                <span class="chip-dot" style="background:#F59E0B"></span>
+                                <i class="ph ph-package" style="color:#F59E0B;font-size:0.8rem"></i> Entry
+                            </div>
+                            <div class="chip" onclick="fillCreds('purchase.mgr@procure.com', this)" style="--c:#D97706">
+                                <span class="chip-dot" style="background:#D97706"></span>
+                                <i class="ph ph-crown-simple" style="color:#D97706;font-size:0.8rem"></i> Manager
+                            </div>
+                        </div>
+                    </div>
+                    <div class="demo-row">
+                        <span class="demo-row-label">Key Accts</span>
+                        <div class="chips">
+                            <div class="chip" onclick="fillCreds('kam.entry@procure.com', this)" style="--c:#3B82F6">
+                                <span class="chip-dot" style="background:#3B82F6"></span>
+                                <i class="ph ph-handshake" style="color:#3B82F6;font-size:0.8rem"></i> Entry
+                            </div>
+                            <div class="chip" onclick="fillCreds('kam.mgr@procure.com', this)" style="--c:#1D4ED8">
+                                <span class="chip-dot" style="background:#1D4ED8"></span>
+                                <i class="ph ph-crown-simple" style="color:#1D4ED8;font-size:0.8rem"></i> Manager
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <p class="text-center mt-2" style="font-size: 0.75rem; color: var(--text-muted);">Password:
-                    <strong>password123</strong>
-                </p>
+                <p class="demo-password">All accounts · password <code>password123</code></p>
             </div>
         </div>
+
     </div>
 
     <script src="/js/auth.js"></script>
     <script src="/js/doodle-bg.js"></script>
     <script>
-        const loginForm = document.getElementById('loginForm');
-        const errorMessage = document.getElementById('errorMessage');
-        const loginBtnText = document.getElementById('loginBtnText');
-        const loginSpinner = document.getElementById('loginSpinner');
+        const loginForm     = document.getElementById('loginForm');
+        const errorMessage  = document.getElementById('errorMessage');
+        const loginBtnText  = document.getElementById('loginBtnText');
+        const loginSpinner  = document.getElementById('loginSpinner');
 
-        // Check if already logged in
         if (getToken()) {
             const user = getUser();
-            if (user) {
-                redirectToRole(user.role);
-            }
+            if (user) redirectToDashboard(user.dashboardPage || null);
         }
 
-        function fillCreds(email) {
-            document.getElementById('email').value = email;
+        function fillCreds(email, chipEl) {
+            document.getElementById('email').value    = email;
             document.getElementById('password').value = 'password123';
 
-            // Add visual feedback
-            const chips = document.querySelectorAll('.chip');
-            chips.forEach(c => c.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+            document.querySelectorAll('.chip').forEach(c => {
+                c.classList.remove('active');
+                c.style.background  = '';
+                c.style.borderColor = '';
+                c.style.color       = '';
+                c.style.boxShadow   = '';
+            });
+
+            const el    = chipEl || event.currentTarget;
+            const color = getComputedStyle(el).getPropertyValue('--c').trim();
+            if (color) {
+                el.style.background  = color + '18';
+                el.style.borderColor = color;
+                el.style.color       = color;
+                el.style.boxShadow   = `0 4px 12px ${color}33`;
+            }
+            document.querySelector('.btn-signin').focus();
         }
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            const email = document.getElementById('email').value;
+            const email    = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
-            // Show loading
             loginBtnText.classList.add('hidden');
             loginSpinner.classList.remove('hidden');
             errorMessage.classList.remove('active');
 
             try {
-                const response = await fetch('/api/auth/login', {
+                const res  = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
+                const data = await res.json();
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    // Save token and user
+                if (res.ok) {
                     saveToken(data.token);
                     saveUser(data.user);
-
-                    // Redirect based on role
-                    redirectToRole(data.user.role);
+                    redirectToDashboard(data.user.dashboardPage || null);
                 } else {
                     errorMessage.textContent = data.error || 'Invalid credentials';
                     errorMessage.classList.add('active');
                 }
-            } catch (error) {
-                console.error('Login error:', error);
+            } catch {
                 errorMessage.textContent = 'Unable to connect to server';
                 errorMessage.classList.add('active');
             } finally {
@@ -443,16 +666,6 @@
                 loginSpinner.classList.add('hidden');
             }
         });
-
-        function redirectToRole(role) {
-            if (role === 'sales') {
-                window.location.href = '/sales.html';
-            } else if (role === 'sourcing') {
-                window.location.href = '/sourcing.html';
-            } else if (role === 'admin') {
-                window.location.href = '/admin.html';
-            }
-        }
     </script>
 </body>
 

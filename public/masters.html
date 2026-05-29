@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,228 +9,189 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
-
 <body>
-    <!-- Mobile Navigation Drawer -->
-    <div id="mobileNavOverlay" class="mobile-nav-overlay" onclick="toggleMobileMenu()"></div>
-    <div id="mobileNavDrawer" class="mobile-nav-drawer">
-        <div class="mobile-nav-header">
-            <div class="brand-logo">
-                <i class="ph-bold ph-lightning" style="color: var(--primary);"></i> Precise Procure
-            </div>
-            <button class="mobile-nav-close" onclick="toggleMobileMenu()">
-                <i class="ph ph-x"></i>
-            </button>
-        </div>
-        <div class="mobile-nav-items">
-            <a href="/sales.html" class="mobile-nav-item">
-                <i class="ph ph-shopping-cart"></i>
-                Sales Dashboard
-            </a>
-            <a href="/sourcing.html" class="mobile-nav-item">
-                <i class="ph ph-package"></i>
-                Sourcing
-            </a>
-            <div
-                style="padding: 0 1rem; margin: 0.5rem 0; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">
-                Master Data</div>
-            <a href="/masters.html?type=materials" class="mobile-nav-item">
-                <i class="ph ph-package"></i>
-                Materials
-            </a>
-            <a href="/masters.html?type=employees" class="mobile-nav-item">
-                <i class="ph ph-users"></i>
-                Employees
-            </a>
-            <a href="/masters.html?type=customers" class="mobile-nav-item">
-                <i class="ph ph-user-circle"></i>
-                Customers
-            </a>
-            <a href="/masters.html?type=vendors" class="mobile-nav-item">
-                <i class="ph ph-storefront"></i>
-                Vendors
-            </a>
-            <a href="#" class="mobile-nav-item" onclick="logout()">
-                <i class="ph ph-sign-out"></i>
-                Logout
-            </a>
-        </div>
-    </div>
+<div class="app-container">
 
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="flex items-center gap-2 logo-text">
-                    <i class="ph ph-gauge" style="font-size: 1.5rem; color: var(--primary);"></i>
-                    <span>Precise Procure</span>
-                </div>
-                <!-- 
-                <button class="toggle-btn" onclick="toggleSidebar()">
-                    <i class="ph ph-list"></i>
-                </button>
-                -->
+    <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="flex items-center gap-2 logo-text">
+                <i class="ph ph-gauge" style="font-size:1.5rem;color:var(--primary)"></i>
+                <span>Precise Procure</span>
             </div>
-
-            <nav class="sidebar-nav">
-                <a href="/sales.html" class="nav-item">
-                    <i class="ph ph-shopping-cart"></i>
-                    <span>Sales Dashboard</span>
-                </a>
-                <a href="/sourcing.html" class="nav-item">
-                    <i class="ph ph-package"></i>
-                    <span>Sourcing</span>
+            <button class="toggle-btn" onclick="toggleSidebar()"><i class="ph ph-list"></i></button>
+        </div>
+        <nav class="sidebar-nav">
+            <!-- Admin Nav (identical to admin.html sidebar) -->
+            <div id="adminNav" style="display:none">
+                <a href="/admin.html" class="nav-item">
+                    <i class="ph ph-house"></i>
+                    <span>Dashboard</span>
                 </a>
                 <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
-                <div style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;"
-                    class="menu-label">Master Data</div>
-                <a href="/masters.html?type=materials" class="nav-item" id="nav-materials">
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Master Data</div>
+                <a href="/masters.html?type=materials" class="nav-item" id="adminNavMaster_materials">
                     <i class="ph ph-package"></i>
                     <span>Materials</span>
                 </a>
-                <a href="/masters.html?type=employees" class="nav-item" id="nav-employees">
+                <a href="/masters.html?type=employees" class="nav-item" id="adminNavMaster_employees">
                     <i class="ph ph-users"></i>
                     <span>Employees</span>
                 </a>
-                <a href="/masters.html?type=customers" class="nav-item" id="nav-customers">
+                <a href="/masters.html?type=customers" class="nav-item" id="adminNavMaster_customers">
                     <i class="ph ph-user-circle"></i>
                     <span>Customers</span>
                 </a>
-                <a href="/masters.html?type=vendors" class="nav-item" id="nav-vendors">
+                <a href="/masters.html?type=vendors" class="nav-item" id="adminNavMaster_vendors">
                     <i class="ph ph-storefront"></i>
                     <span>Vendors</span>
                 </a>
-            </nav>
-
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <div
-                        style="width: 32px; height: 32px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
-                        <i class="ph ph-user"></i>
-                    </div>
-                    <div class="user-info" style="flex: 1; overflow: hidden;">
-                        <div style="font-weight: 600; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                            id="navUserName">Admin</div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Administrator</div>
-                    </div>
-                    <button onclick="logout()" class="toggle-btn" title="Logout">
-                        <i class="ph ph-sign-out"></i>
-                    </button>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="header flex-between mb-4"
-                style="background: transparent; border: none; padding: 0; box-shadow: none;">
-                <div class="flex items-center gap-3">
-                    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
-                        <i class="ph ph-list"></i>
-                    </button>
-                    <div>
-                        <h1 id="pageTitle"><i class="ph ph-database"></i> Master Data</h1>
-
-                        <p class="text-muted">Manage your <span id="masterType"></span></p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="btn btn-secondary" onclick="window.location.href='/admin.html'">
-                            <i class="ph ph-arrow-left"></i> Back to Dashboard
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Action Bar -->
-                <div class="card mb-3" style="padding: 1rem;">
-                    <div class="flex-between">
-                        <div class="flex gap-2">
-                            <button class="btn btn-primary" onclick="showAddModal()">
-                                <i class="ph ph-plus-circle"></i> Add New
-                            </button>
-                            <button class="btn btn-secondary" onclick="loadData()">
-                                <i class="ph ph-arrows-clockwise"></i> Refresh
-                            </button>
-                        </div>
-                        <div>
-                            <input type="text" id="searchInput" placeholder="Search..." style="width: 300px;"
-                                onkeyup="filterData()">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Data Table -->
-                <div class="card" style="padding: 1.5rem;">
-                    <div class="table-responsive">
-                        <table class="table" id="dataTable">
-                            <thead id="tableHeader"></thead>
-                            <tbody id="tableBody">
-                                <tr>
-                                    <td colspan="10" class="text-center">
-                                        <div class="spinner"></div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-        </main>
-    </div>
-
-    <!-- Add/Edit Modal -->
-    <div id="formModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Add Item</h3>
-                <button class="close-btn" onclick="closeFormModal()">&times;</button>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Enquiry Management</div>
+                <a href="/sales.html" class="nav-item" id="adminNavSalesLink">
+                    <i class="ph ph-shopping-cart-simple"></i>
+                    <span>Sales &amp; Enquiries</span>
+                </a>
+                <a href="/sourcing.html" class="nav-item" id="adminNavSourcingLink">
+                    <i class="ph ph-package"></i>
+                    <span>Sourcing / Purchase</span>
+                </a>
+                <a href="/key-accounts.html" class="nav-item" id="adminNavKamLink">
+                    <i class="ph ph-handshake"></i>
+                    <span>Key Accounts</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
+                <a href="/role-management.html" class="nav-item">
+                    <i class="ph ph-shield-check"></i>
+                    <span>Role Management</span>
+                </a>
             </div>
 
-            <form id="dataForm">
-                <div id="formFields" style="padding: 1.5rem;"></div>
-
-                <div class="flex gap-2"
-                    style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); justify-content: flex-end; background: var(--bg-hover); border-radius: 0 0 0.5rem 0.5rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeFormModal()">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="ph ph-check"></i> Save Changes
-                    </button>
+            <!-- Role Nav -->
+            <div id="roleNav" style="display:none">
+                <div id="sidebarPipelineSection">
+                    <div class="menu-label" style="padding:0 1rem;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Enquiry Pipeline</div>
+                    <a href="/sales.html" class="nav-item" id="sidebarSalesLink"><i class="ph ph-shopping-cart-simple"></i><span>Sales &amp; Enquiries</span></a>
+                    <a href="/sourcing.html" class="nav-item" id="sidebarSourcingLink"><i class="ph ph-package"></i><span>Sourcing / Purchase</span></a>
+                    <a href="/key-accounts.html" class="nav-item" id="sidebarKamLink"><i class="ph ph-handshake"></i><span>Key Accounts</span></a>
                 </div>
-            </form>
+                <div id="sidebarMasterSection">
+                    <div style="height:1px;background:var(--border);margin:0.5rem 0"></div>
+                    <div class="menu-label" style="padding:0 1rem;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Master Data</div>
+                    <a href="/masters.html?type=materials" class="nav-item" id="sidebarMaterialsLink"><i class="ph ph-cube"></i><span>Materials</span></a>
+                    <a href="/masters.html?type=customers" class="nav-item" id="sidebarCustomersLink"><i class="ph ph-user-circle"></i><span>Customers</span></a>
+                    <a href="/masters.html?type=vendors" class="nav-item" id="sidebarVendorsLink"><i class="ph ph-storefront"></i><span>Vendors</span></a>
+                    <a href="/masters.html?type=employees" class="nav-item" id="sidebarEmployeesLink"><i class="ph ph-users"></i><span>Employees</span></a>
+                </div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div style="width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0">
+                    <i class="ph ph-user"></i>
+                </div>
+                <div class="user-info" style="flex:1;overflow:hidden">
+                    <div style="font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="navUserName">User</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary)" id="navUserRole"></div>
+                </div>
+                <button onclick="logout()" class="toggle-btn" title="Logout"><i class="ph ph-sign-out"></i></button>
+            </div>
         </div>
+    </aside>
+
+    <!-- ── Main Content ────────────────────────────────────────────── -->
+    <main class="main-content">
+
+        <!-- Compact top bar for role-based users -->
+        <header id="roleTopNav" style="display:none;justify-content:space-between;align-items:center;margin-bottom:1.75rem;padding:0.75rem 1.5rem;background:rgba(255,255,255,0.75);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,0.6);border-radius:1rem;position:sticky;top:1rem;z-index:90;box-shadow:0 4px 24px rgba(0,0,0,0.06),0 1px 4px rgba(0,0,0,0.04),inset 0 1px 0 rgba(255,255,255,0.8)">
+            <div style="display:flex;align-items:center;gap:0.6rem">
+                <i class="ph ph-gauge" style="color:var(--primary);font-size:1.2rem"></i>
+                <span style="font-weight:700;font-size:0.9rem;color:var(--text-primary)">Precise Procure</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem">
+                <div style="text-align:right">
+                    <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary)" id="topNavUserName"></div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)" id="topNavUserRole"></div>
+                </div>
+                <button onclick="logout()" class="toggle-btn" title="Logout" style="color:var(--text-secondary)">
+                    <i class="ph ph-sign-out" style="font-size:1.1rem"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Page Header -->
+        <div class="header mb-4" style="background:transparent;border:none;padding:0;box-shadow:none">
+            <div class="flex-between" style="flex-wrap:wrap;gap:1rem;align-items:center">
+                <div>
+                    <h1 id="pageTitle" style="font-size:1.75rem;display:flex;align-items:center;gap:0.6rem;color:inherit"><i class="ph ph-database" style="color:var(--primary)"></i> Master Data</h1>
+                    <p class="text-muted">Manage your <span id="masterType"></span></p>
+                </div>
+                <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+                    <input type="text" id="searchInput" placeholder="Search..." style="width:260px;padding:0.55rem 0.875rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.875rem;background:var(--bg-secondary)" onkeyup="filterData()">
+                    <button class="btn btn-secondary" onclick="loadData()">
+                        <i class="ph ph-arrows-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" id="addNewBtn" onclick="showAddModal()">
+                        <i class="ph ph-plus-circle"></i> Add New
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card" style="padding:1.5rem">
+            <div class="table-responsive">
+                <table class="table" id="dataTable">
+                    <thead id="tableHeader"></thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="10" class="text-center">
+                                <div class="spinner"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="formModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">Add Item</h3>
+            <button class="close-btn" onclick="closeFormModal()">&times;</button>
+        </div>
+        <form id="dataForm">
+            <div id="formFields" style="padding:1.5rem"></div>
+            <div class="flex gap-2" style="padding:1rem 1.5rem;border-top:1px solid var(--border);justify-content:flex-end;background:var(--bg-hover);border-radius:0 0 0.5rem 0.5rem">
+                <button type="button" class="btn btn-secondary" onclick="closeFormModal()">Cancel</button>
+                <button type="submit" class="btn btn-success"><i class="ph ph-check"></i> Save Changes</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script src="/js/auth.js"></script>
-    <script src="/js/masters.js"></script>
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Restore sidebar state
-            const sidebar = document.getElementById('sidebar');
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-            }
-
-            // Set user name
-            const user = getUser();
-            if (user) {
-                document.getElementById('navUserName').textContent = user.name;
-            }
-
-            // Highlight active link
-            const params = new URLSearchParams(window.location.search);
-            const masterType = params.get('type');
-            if (masterType) {
-                document.getElementById(`nav-${masterType}`)?.classList.add('active');
-            }
-        });
-    </script>
+<script src="/js/auth.js"></script>
+<script src="/js/layout.js"></script>
+<script src="/js/masters.js"></script>
+<script>
+    // Highlight active master-type link in both nav sections after layout.js runs
+    document.addEventListener('DOMContentLoaded', () => {
+        const type = new URLSearchParams(window.location.search).get('type');
+        if (!type) return;
+        // Role nav active state
+        document.getElementById(`sidebarMaterialsLink`)?.classList.remove('active');
+        document.getElementById(`sidebarCustomersLink`)?.classList.remove('active');
+        document.getElementById(`sidebarVendorsLink`)?.classList.remove('active');
+        document.getElementById(`sidebarEmployeesLink`)?.classList.remove('active');
+        const roleLink = document.querySelector(`#sidebarMasterSection a[href="/masters.html?type=${type}"]`);
+        if (roleLink) roleLink.classList.add('active');
+        // Admin nav active state is handled by initSidebar() in layout.js
+    });
+</script>
 </body>
-
 </html>

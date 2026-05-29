@@ -1586,6 +1586,26 @@ select:focus {
   color: #ef4444;
   border: 1px solid #fee2e2;
 }
+.badge-unassigned {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.badge-in-query {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.badge-query-resolved {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.badge-priced {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
 
 /* Visual Identification for Completed/Unsuccessful rows */
 .enquiry-row.status-completed {
@@ -1595,6 +1615,487 @@ select:focus {
 .enquiry-row.status-unsuccessful {
   border-left: 4px solid #ef4444 !important;
   opacity: 0.8;
+}
+
+/* ── KAM Dashboard: Main Section Tabs ───────────────────────────────────── */
+.main-section-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0;
+}
+
+.section-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 0.5rem 0.5rem 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.section-tab:hover {
+  color: var(--primary);
+  background: var(--bg-hover);
+}
+
+.section-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: none;
+}
+
+/* ── Client Portfolio Cards ──────────────────────────────────────────────── */
+.client-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.client-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.client-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.client-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.client-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.client-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.client-contact {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.client-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.client-stat {
+  text-align: center;
+  min-width: 3rem;
+}
+
+.client-stat-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.client-stat-lbl {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.1rem;
+}
+
+/* ── Modern Enquiry Card ────────────────────────────────────────────────────── */
+.enq-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  margin-bottom: 0.875rem;
+  overflow: hidden;
+  transition: box-shadow 0.18s, border-color 0.18s;
+}
+.enq-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.07); }
+.enq-card.status-completed { border-left: 4px solid #10b981; }
+.enq-card.status-unsuccessful { border-left: 4px solid #ef4444; opacity: 0.85; }
+.enq-card.has-query { border-left: 4px solid #f59e0b; }
+
+.enq-card-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.enq-card-head:hover { background: var(--bg-secondary); }
+
+.enq-head-left { display: flex; flex-direction: column; gap: 0.25rem; flex: 0 0 auto; min-width: 0; }
+.enq-num-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light, rgba(79,70,229,0.08));
+  border: 1px solid rgba(79,70,229,0.15);
+  border-radius: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+.enq-customer {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.enq-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.enq-pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.enq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.enq-chip-count { font-weight: 700; }
+.enq-chip.chip-unassigned { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+.enq-chip.chip-assigned   { background:#ede9fe; color:#5b21b6; border-color:#c4b5fd; }
+.enq-chip.chip-query      { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+.enq-chip.chip-quoted     { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
+.enq-chip.chip-priced     { background:#eff6ff; color:#1e40af; border-color:#bfdbfe; }
+.enq-chip.chip-done       { background:#f0fdf4; color:#166534; border-color:#86efac; }
+.enq-chip.chip-alert      { background:#fef3c7; color:#92400e; border-color:#f59e0b; animation: chipPulse 1.8s ease-in-out infinite; }
+
+@keyframes chipPulse {
+  0%,100% { opacity:1; } 50% { opacity:0.65; }
+}
+
+.enq-head-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.enq-chevron {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform 0.25s, background 0.15s;
+  flex-shrink: 0;
+}
+.enq-card.expanded .enq-chevron {
+  transform: rotate(180deg);
+  background: var(--primary-light, rgba(79,70,229,0.1));
+  color: var(--primary);
+}
+
+.enq-card-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.enq-card.expanded .enq-card-body {
+  max-height: 2000px;
+}
+.enq-card-body-inner {
+  border-top: 1px solid var(--border);
+}
+.enq-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+  .enq-card-head { flex-wrap: wrap; gap: 0.625rem; }
+  .enq-pipeline { order: 3; width: 100%; }
+  .enq-head-right { order: 2; }
+  .enq-customer { max-width: 140px; }
+}
+
+/* ── View Mode Toggle ───────────────────────────────────────────────────────── */
+.view-toggle {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+.view-toggle-btn {
+  padding: 0.3rem 0.75rem;
+  border: none;
+  border-radius: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.view-toggle-btn.active {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.view-toggle-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-hover, rgba(0,0,0,0.04));
+}
+
+/* ── Material-first View Cards ─────────────────────────────────────────────── */
+.material-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  margin-bottom: 0.875rem;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.material-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.material-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  flex-wrap: wrap;
+}
+@media (max-width: 768px) {
+  .material-card-header { gap: 0.5rem; }
+  .material-card-header .enq-pipeline { order: 3; width: 100%; justify-content: flex-start; }
+}
+.material-card-header:hover {
+  background: var(--bg-secondary);
+}
+.material-icon {
+  width: 34px;
+  height: 34px;
+  background: #eff6ff;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--primary);
+  font-size: 1rem;
+}
+.material-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.material-meta-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+.material-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.material-stat-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.material-chevron {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+}
+.material-card.open .material-chevron {
+  transform: rotate(180deg);
+}
+.material-enquiries {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+.material-card.open .material-enquiries {
+  display: block;
+}
+.material-enquiries .items-table {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+.material-enquiries .items-table thead th {
+  background: var(--bg-secondary);
+  font-size: 0.72rem;
+  padding: 0.5rem 1rem;
+}
+.material-enquiries .items-table tbody td {
+  padding: 0.6rem 1rem;
+  font-size: 0.83rem;
+}
+
+/* ── Items View — Glassmorphic Flat Table ───────────────────────────────────── */
+.glass-table-wrap {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 1rem;
+  box-shadow:
+    0 8px 32px rgba(31, 38, 135, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+.glass-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.glass-table thead th {
+  background: rgba(248, 250, 252, 0.96);
+  padding: 0.65rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.glass-table tbody tr {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  transition: background 0.12s;
+}
+.glass-table tbody tr:last-child {
+  border-bottom: none;
+}
+.glass-table tbody tr:hover {
+  background: rgba(79, 70, 229, 0.025);
+}
+.glass-table td {
+  padding: 0.65rem 1rem;
+  font-size: 0.82rem;
+  vertical-align: middle;
+  color: var(--text-primary);
+}
+.glass-table .mat-primary {
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+.glass-table .mat-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+.glass-table .enq-ref {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(79, 70, 229, 0.08);
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.3rem;
+  white-space: nowrap;
+  display: inline-block;
+}
+.glass-table-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.1rem;
+  background: rgba(248, 250, 252, 0.9);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.glass-table-meta strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .item-completed-tag,

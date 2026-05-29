@@ -1904,6 +1904,19 @@ select:focus {
   /* border-left: 3px solid var(--primary); Removed for cleaner look */
 }
 
+.add-new-vendor-option {
+  border-top: 2px solid var(--border);
+  border-bottom: none !important;
+  background: var(--bg-page);
+  color: var(--primary);
+  position: sticky;
+  bottom: 0;
+}
+
+.add-new-vendor-option:hover {
+  background: var(--primary-light) !important;
+}
+
 .vendor-main {
   flex: 1;
   display: flex;
@@ -1964,6 +1977,21 @@ select:focus {
 .vendor-price-badge.cheapest {
   background: #dcfce7;
   color: #166534;
+}
+
+.combined-from-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #6d28d9;
+  background: #ede9fe;
+  border: 1px solid #c4b5fd;
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  margin-top: 0.2rem;
+  white-space: nowrap;
 }
 
 .vendor-price-badge.not-cheapest {

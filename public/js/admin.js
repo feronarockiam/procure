@@ -4,19 +4,22 @@ let products = [];
 let customers = [];
 let vendors = [];
 let users = [];
+let viewMode = localStorage.getItem('viewMode_admin') || 'enquiry'; // 'enquiry' | 'material' | 'items'
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     const user = checkAuth();
-    if (!user || user.role !== 'admin') {
-        window.location.href = '/';
+    if (!user) return;
+    if (!hasPermission('dashboard.admin')) {
+        showToast('You do not have permission to access the Admin dashboard', 'error');
+        setTimeout(() => window.location.href = '/', 1500);
         return;
     }
 
     const userNameEl = document.getElementById('navUserName');
-    if (userNameEl) {
-        userNameEl.textContent = user.name;
-    }
+    if (userNameEl) userNameEl.textContent = user.name;
+    const roleEl = document.getElementById('navUserRole');
+    if (roleEl) roleEl.textContent = user.roleName || 'Administrator';
 
     await loadDashboardData();
 });
@@ -36,10 +39,11 @@ async function loadDashboardData() {
         renderAIInsights();
         renderProfitability();
         renderWorkload();
+        const tog = document.getElementById('viewToggleContainer');
+        if (tog) tog.innerHTML = getViewToggleHTML(viewMode);
         renderEnquiriesTable(enquiries); // New Action Center
         renderPipelineVisualizer();
         renderTopProducts();
-        renderEnquiriesTable();
 
         showToast('Dashboard updated with latest insights', 'success');
     } catch (error) {
@@ -324,7 +328,119 @@ function renderTopProducts() {
     `;
 }
 
+function setViewMode(mode) {
+    viewMode = mode;
+    localStorage.setItem('viewMode_admin', mode);
+    const tog = document.getElementById('viewToggleContainer');
+    if (tog) tog.innerHTML = getViewToggleHTML(mode);
+    // Swap table header
+    const materialHead = document.getElementById('enquiriesTableHeadMaterial');
+    const enquiryHead  = document.getElementById('enquiriesTableHeadEnquiry');
+    const itemsHead    = document.getElementById('enquiriesTableHeadItems');
+    if (materialHead) materialHead.style.display = mode === 'material' ? '' : 'none';
+    if (enquiryHead)  enquiryHead.style.display  = mode === 'enquiry'  ? '' : 'none';
+    if (itemsHead)    itemsHead.style.display     = mode === 'items'    ? '' : 'none';
+    filterEnquiries();
+}
+
+function renderMaterialsTable(filteredData = null) {
+    const container = document.getElementById('enquiriesTableBody');
+    if (!container) return;
+    const data = filteredData || enquiries;
+    const entries = [];
+    for (const enq of data) {
+        for (const item of (enq.items || [])) {
+            entries.push({ item, enquiry: enq });
+        }
+    }
+    const groups = groupByMaterial(entries);
+    if (!groups.length) {
+        container.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No materials found</td></tr>';
+        return;
+    }
+    container.innerHTML = groups.map((group, idx) => {
+        const prod = group.product;
+        const name = prod?.materialName || 'Unknown';
+        const brand = prod?.brand || '';
+        const spec = prod?.specification || '';
+        const uom = prod?.uom || '';
+        const meta = [brand, spec].filter(Boolean).join(' · ');
+        const id = `mat-admin-${idx}`;
+        const subRows = group.entries.map(({ item, enquiry }) => {
+            const displayStatus = getEnquiryDisplayStatus({ items: [item], status: item.status });
+            return `<tr style="background:var(--bg-secondary)">
+                <td style="padding-left:2.5rem;font-size:0.8rem;color:var(--primary);font-weight:500">${enquiry.enquiryNumber}</td>
+                <td style="font-size:0.8rem">${enquiry.customerId?.name || '—'}<br><span class="text-muted" style="font-size:0.72rem">${enquiry.customerId?.contactPerson || ''}</span></td>
+                <td style="font-size:0.8rem">${item.quantity} ${uom}</td>
+                <td style="font-size:0.8rem">${formatDate(enquiry.createdAt)}</td>
+                <td>${getStatusBadge(item.status)}</td>
+                <td></td>
+                <td><button class="btn btn-sm btn-secondary" onclick="viewEnquiryDetails('${enquiry._id}')">View</button></td>
+            </tr>`;
+        }).join('');
+        return `<tr id="${id}-row" onclick="toggleAdminMaterialRow('${id}')" style="cursor:pointer">
+            <td><div style="display:flex;align-items:center;gap:0.5rem">
+                <i class="ph ph-caret-right" id="chevron-${id}" style="font-size:0.85rem;color:var(--text-muted);transition:transform 0.2s"></i>
+                <span style="font-weight:600">${name}</span>
+            </div>
+            ${meta ? `<div style="font-size:0.75rem;color:var(--text-muted);padding-left:1.5rem">${meta}</div>` : ''}</td>
+            <td colspan="2" style="color:var(--text-muted);font-size:0.82rem">${group.entries.map(e => e.enquiry.customerId?.name).filter((v,i,a)=>a.indexOf(v)===i).slice(0,2).join(', ')}${group.entries.length > 2 ? '…' : ''}</td>
+            <td style="font-size:0.82rem">${group.entries.length} enquir${group.entries.length===1?'y':'ies'}</td>
+            <td><span class="material-stat-chip">${group.totalQty} ${uom}</span></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr id="${id}-sub" style="display:none"><td colspan="7" style="padding:0">
+            <table style="width:100%;border-collapse:collapse">${subRows}</table>
+        </td></tr>`;
+    }).join('');
+}
+
+function toggleAdminMaterialRow(id) {
+    const sub = document.getElementById(`${id}-sub`);
+    const chev = document.getElementById(`chevron-${id}`);
+    if (!sub) return;
+    const open = sub.style.display !== 'none';
+    sub.style.display = open ? 'none' : '';
+    if (chev) chev.style.transform = open ? '' : 'rotate(90deg)';
+}
+
+function renderItemsTableView(filteredData = null) {
+    const container = document.getElementById('enquiriesTableBody');
+    if (!container) return;
+    const data = filteredData || enquiries;
+    const rows = [];
+    for (const enq of data) {
+        for (const item of (enq.items || [])) {
+            const prod = item.productId;
+            const uom = prod?.uom || '';
+            rows.push(`<tr>
+                <td>
+                    <div style="font-weight:600;font-size:0.82rem">${prod?.materialName || '—'}</div>
+                    ${(prod?.brand || prod?.specification) ? `<div style="font-size:0.72rem;color:var(--text-muted)">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+                </td>
+                <td style="font-family:monospace;font-size:0.78rem;color:var(--primary);font-weight:600">${enq.enquiryNumber}</td>
+                <td><div style="font-size:0.82rem;font-weight:500">${enq.customerId?.name || '—'}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)">${enq.customerId?.contactPerson || ''}</div></td>
+                <td style="white-space:nowrap;font-size:0.82rem">${item.quantity} ${uom}</td>
+                <td style="font-size:0.8rem">${item.assignedTo?.name ? `<span class="badge badge-info">${item.assignedTo.name}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td>${getStatusBadge(item.status)}</td>
+                <td style="font-size:0.78rem;color:var(--text-muted)">${formatDate(enq.createdAt)}</td>
+                <td><button class="btn btn-sm btn-secondary" onclick="viewEnquiryDetails('${enq._id}')">View</button></td>
+            </tr>`);
+        }
+    }
+    // Inject into the tbody directly (admin uses a regular table, not glass-table-wrap)
+    if (!rows.length) {
+        container.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No items found</td></tr>';
+        return;
+    }
+    container.innerHTML = rows.join('');
+}
+
 function renderEnquiriesTable(filteredData = null) {
+    if (viewMode === 'material') { renderMaterialsTable(filteredData); return; }
+    if (viewMode === 'items')    { renderItemsTableView(filteredData); return; }
     const container = document.getElementById('enquiriesTableBody');
     if (!container) return;
 
@@ -388,14 +504,18 @@ function filterEnquiries(status = null) {
     const searchTerm = document.getElementById('enquirySearch').value.toLowerCase();
     const statusFilter = status || document.getElementById('statusFilter').value;
 
-    // Update select if status passed programmatically
     if (status) document.getElementById('statusFilter').value = status;
 
     const filtered = enquiries.filter(enq => {
-        const matchesSearch =
-            enq.enquiryNumber.toLowerCase().includes(searchTerm) ||
-            (enq.customerId?.name || '').toLowerCase().includes(searchTerm);
-        
+        const matchesEnqNum = enq.enquiryNumber.toLowerCase().includes(searchTerm);
+        const matchesCust = (enq.customerId?.name || '').toLowerCase().includes(searchTerm);
+        const matchesMat = viewMode === 'material' && enq.items?.some(i =>
+            (i.productId?.materialName || '').toLowerCase().includes(searchTerm) ||
+            (i.productId?.brand || '').toLowerCase().includes(searchTerm) ||
+            (i.productId?.specification || '').toLowerCase().includes(searchTerm)
+        );
+        const matchesSearch = !searchTerm || matchesEnqNum || matchesCust || matchesMat;
+
         const displayStatus = getEnquiryDisplayStatus(enq);
         const matchesStatus = statusFilter === 'all' || displayStatus === statusFilter;
         return matchesSearch && matchesStatus;
@@ -542,11 +662,12 @@ async function loadMessages(enquiryId) {
         }
 
         const html = messages.map(m => {
-            const isSourcing = m.senderId.role === 'sourcing';
+            const senderRole = m.senderId.roleName || m.senderId.role || '';
+            const isSourcing = senderRole.toLowerCase().includes('purchase') || senderRole === 'sourcing';
             return `
                 <div class="chat-message ${isSourcing ? 'received' : 'sent'}" style="margin-bottom: 0.5rem;">
                     <div style="font-weight: 600; font-size: 0.7rem; margin-bottom: 0.2rem; opacity: 0.9;">
-                        ${m.senderId.name} (${m.senderId.role})
+                        ${m.senderId.name} (${senderRole})
                     </div>
                     <div>${m.message}</div>
                     <div class="message-info">${formatDate(m.createdAt)} ${new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>

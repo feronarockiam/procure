@@ -1,146 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Dashboard - Precise Procure</title>
+    <title>Sales &amp; Enquiries – Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-
 </head>
-
 <body>
-    <!-- Mobile Navigation Drawer -->
-    <div id="mobileNavOverlay" class="mobile-nav-overlay" onclick="toggleMobileMenu()"></div>
-    <div id="mobileNavDrawer" class="mobile-nav-drawer">
-        <div class="mobile-nav-header">
-            <div class="brand-logo">
-                <i class="ph-bold ph-lightning" style="color: var(--primary);"></i> Precise Procure
-            </div>
-            <button class="mobile-nav-close" onclick="toggleMobileMenu()">
-                <i class="ph ph-x"></i>
-            </button>
-        </div>
-        <div class="mobile-nav-items">
-            <a href="/sales.html" class="mobile-nav-item">
-                <i class="ph ph-shopping-cart"></i>
-                Sales Dashboard
-            </a>
-            <a href="/sourcing.html" class="mobile-nav-item">
-                <i class="ph ph-package"></i>
-                Sourcing
-            </a>
-            <a href="/masters.html" class="mobile-nav-item">
-                <i class="ph ph-database"></i>
-                Masters
-            </a>
-            <a href="#" class="mobile-nav-item" onclick="showBulkUploadModal(); toggleMobileMenu();">
-                <i class="ph ph-upload-simple"></i>
-                Bulk Upload
-            </a>
-            <a href="#" class="mobile-nav-item" onclick="logout()">
-                <i class="ph ph-sign-out"></i>
-                Logout
-            </a>
-        </div>
-    </div>
+<div class="app-container">
 
-    <div class="dashboard">
-        <div class="glass-header">
-            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
-                <i class="ph ph-list"></i>
-            </button>
-            <div class="brand-logo">
-                <i class="ph-bold ph-lightning" style="color: var(--primary);"></i> Precise Procure
+    <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="flex items-center gap-2 logo-text">
+                <i class="ph ph-gauge" style="font-size:1.5rem;color:var(--primary)"></i>
+                <span>Precise Procure</span>
             </div>
-            <div class="header-actions">
-                <div class="notification-wrapper">
-                    <button class="btn-icon" onclick="toggleNotifications()">
-                        <i class="ph ph-bell" style="font-size: 1.5rem;"></i>
-                        <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
-                    </button>
-                    <div id="notificationDropdown" class="notification-dropdown" style="display: none;">
-                        <div class="notification-header flex-between">
-                            <span>Notifications</span>
-                            <button class="text-xs btn-link" onclick="markAllRead()">Mark all read</button>
-                        </div>
-                        <div id="notificationList" class="notification-list">
-                            <div class="spinner"></div>
+            <button class="toggle-btn" onclick="toggleSidebar()"><i class="ph ph-list"></i></button>
+        </div>
+        <nav class="sidebar-nav">
+            <!-- Admin Nav (shown for admins — identical to admin.html sidebar) -->
+            <div id="adminNav" style="display:none">
+                <a href="/admin.html" class="nav-item">
+                    <i class="ph ph-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Master Data</div>
+                <a href="/masters.html?type=materials" class="nav-item" id="adminNavMaster_materials">
+                    <i class="ph ph-package"></i>
+                    <span>Materials</span>
+                </a>
+                <a href="/masters.html?type=employees" class="nav-item" id="adminNavMaster_employees">
+                    <i class="ph ph-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="/masters.html?type=customers" class="nav-item" id="adminNavMaster_customers">
+                    <i class="ph ph-user-circle"></i>
+                    <span>Customers</span>
+                </a>
+                <a href="/masters.html?type=vendors" class="nav-item" id="adminNavMaster_vendors">
+                    <i class="ph ph-storefront"></i>
+                    <span>Vendors</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Enquiry Management</div>
+                <a href="/sales.html" class="nav-item" id="adminNavSalesLink">
+                    <i class="ph ph-shopping-cart-simple"></i>
+                    <span>Sales &amp; Enquiries</span>
+                </a>
+                <a href="/sourcing.html" class="nav-item" id="adminNavSourcingLink">
+                    <i class="ph ph-package"></i>
+                    <span>Sourcing / Purchase</span>
+                </a>
+                <a href="/key-accounts.html" class="nav-item" id="adminNavKamLink">
+                    <i class="ph ph-handshake"></i>
+                    <span>Key Accounts</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
+                <a href="/role-management.html" class="nav-item">
+                    <i class="ph ph-shield-check"></i>
+                    <span>Role Management</span>
+                </a>
+            </div>
+
+            <!-- Role Nav (shown for non-admins — permission-gated) -->
+            <div id="roleNav" style="display:none">
+                <div id="sidebarPipelineSection">
+                    <div class="menu-label" style="padding:0 1rem;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Enquiry Pipeline</div>
+                    <a href="/sales.html" class="nav-item active" id="sidebarSalesLink"><i class="ph ph-shopping-cart-simple"></i><span>Sales &amp; Enquiries</span></a>
+                    <a href="/sourcing.html" class="nav-item" id="sidebarSourcingLink"><i class="ph ph-package"></i><span>Sourcing / Purchase</span></a>
+                    <a href="/key-accounts.html" class="nav-item" id="sidebarKamLink"><i class="ph ph-handshake"></i><span>Key Accounts</span></a>
+                </div>
+                <div id="sidebarMasterSection">
+                    <div style="height:1px;background:var(--border);margin:0.5rem 0"></div>
+                    <div class="menu-label" style="padding:0 1rem;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Master Data</div>
+                    <a href="/masters.html?type=materials" class="nav-item" id="sidebarMaterialsLink"><i class="ph ph-cube"></i><span>Materials</span></a>
+                    <a href="/masters.html?type=customers" class="nav-item" id="sidebarCustomersLink"><i class="ph ph-user-circle"></i><span>Customers</span></a>
+                    <a href="/masters.html?type=vendors" class="nav-item" id="sidebarVendorsLink"><i class="ph ph-storefront"></i><span>Vendors</span></a>
+                    <a href="/masters.html?type=employees" class="nav-item" id="sidebarEmployeesLink"><i class="ph ph-users"></i><span>Employees</span></a>
+                </div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div style="width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0">
+                    <i class="ph ph-user"></i>
+                </div>
+                <div class="user-info" style="flex:1;overflow:hidden">
+                    <div style="font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="navUserName">User</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary)" id="navUserRole"></div>
+                </div>
+                <button onclick="logout()" class="toggle-btn" title="Logout"><i class="ph ph-sign-out"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main Content ────────────────────────────────────────────── -->
+    <main class="main-content">
+
+        <!-- Compact top bar for role-based users (admin keeps sidebar instead) -->
+        <header id="roleTopNav" style="display:none;justify-content:space-between;align-items:center;margin-bottom:1.75rem;padding:0.75rem 1.5rem;background:rgba(255,255,255,0.75);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,0.6);border-radius:1rem;position:sticky;top:1rem;z-index:90;box-shadow:0 4px 24px rgba(0,0,0,0.06),0 1px 4px rgba(0,0,0,0.04),inset 0 1px 0 rgba(255,255,255,0.8)">
+            <div style="display:flex;align-items:center;gap:0.6rem">
+                <i class="ph ph-gauge" style="color:var(--primary);font-size:1.2rem"></i>
+                <span style="font-weight:700;font-size:0.9rem;color:var(--text-primary)">Precise Procure</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem">
+                <div style="text-align:right">
+                    <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary)" id="topNavUserName"></div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)" id="topNavUserRole"></div>
+                </div>
+                <button onclick="logout()" class="toggle-btn" title="Logout" style="color:var(--text-secondary)">
+                    <i class="ph ph-sign-out" style="font-size:1.1rem"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Page Header -->
+        <div class="header mb-4" style="background:transparent;border:none;padding:0;box-shadow:none">
+            <div class="flex-between" style="flex-wrap:wrap;gap:1rem;align-items:flex-start">
+                <div>
+                    <h1 style="font-size:1.75rem;display:flex;align-items:center;gap:0.6rem">
+                        <i class="ph ph-shopping-cart-simple" style="color:var(--primary)"></i>
+                        Sales &amp; Enquiries
+                    </h1>
+                    <p class="text-muted" id="greetingSubtitle">Manage enquiries, pricing and quotations.</p>
+                </div>
+                <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+                    <!-- Notifications -->
+                    <div class="notification-wrapper">
+                        <button class="btn-icon" onclick="toggleNotifications()">
+                            <i class="ph ph-bell" style="font-size:1.5rem"></i>
+                            <span id="notificationBadge" class="notification-badge" style="display:none">0</span>
+                        </button>
+                        <div id="notificationDropdown" class="notification-dropdown" style="display:none">
+                            <div class="notification-header flex-between">
+                                <span>Notifications</span>
+                                <button class="text-xs btn-link" onclick="markAllRead()">Mark all read</button>
+                            </div>
+                            <div id="notificationList" class="notification-list"><div class="spinner"></div></div>
                         </div>
                     </div>
-                </div>
-                <button class="btn btn-secondary" onclick="showBulkUploadModal()">
-                    <i class="ph ph-upload-simple"></i>
-                    Bulk Upload
-                </button>
-                <button class="btn btn-primary" onclick="showNewEnquiryModal()">
-                    <i class="ph ph-plus"></i>
-                    New Enquiry
-                </button>
-                <div class="user-profile-dropdown" style="margin-left: 0.5rem;">
-                    <button class="btn btn-secondary" onclick="logout()" title="Logout">
-                        <i class="ph ph-sign-out"></i>
+                    <button class="btn btn-secondary" id="bulkUploadBtn" style="display:none" onclick="showBulkUploadModal()">
+                        <i class="ph ph-upload-simple"></i> Bulk Upload
+                    </button>
+                    <button class="btn btn-primary" id="newEnquiryBtn" style="display:none" onclick="showNewEnquiryModal()">
+                        <i class="ph ph-plus"></i> New Enquiry
                     </button>
                 </div>
             </div>
         </div>
 
-        <div class="welcome-section">
-            <div class="greeting-title" id="dynamicGreeting">
-                Hello, <span id="userName">User</span> 👋
-            </div>
-            <div class="greeting-subtitle" id="greetingSubtitle">
-                Let's get productive today.
-            </div>
-        </div>
-
-        <!-- Premium Insights Dashboard -->
+        <!-- Insights -->
         <div class="dashboard-section-header">
             <div class="status-indicator"></div>
             <h2>Insights You Need</h2>
         </div>
-
         <div class="dashboard-grid">
             <div class="insight-card urgent">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-warning-circle"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-warning-circle"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightUrgentCount">0</div>
                     <div class="insight-label">Urgent Attention</div>
-                    <div class="insight-subtext">>48h without quotes</div>
+                    <div class="insight-subtext">&gt;48h without quotes</div>
                 </div>
             </div>
-
             <div class="insight-card info">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-clock"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-clock"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightWaitingVendor">0</div>
                     <div class="insight-label">Awaiting Vendor</div>
                     <div class="insight-subtext">Items with Sourcing team</div>
                 </div>
             </div>
-
             <div class="insight-card success">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-check-circle"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-check-circle"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightReadyCustomer">0</div>
                     <div class="insight-label">Ready for Customer</div>
-                    <div class="insight-subtext">Fully priced & ready to quote</div>
+                    <div class="insight-subtext">Fully priced &amp; ready to quote</div>
                 </div>
             </div>
-
             <div class="insight-card revenue">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-currency-circle-dollar"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-currency-circle-dollar"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightRevenue">₹0</div>
                     <div class="insight-label">Monthly Volume</div>
@@ -152,513 +198,454 @@
         <!-- Search & Filters -->
         <div class="card search-filter-card">
             <div class="search-row">
-                <i class="ph ph-magnifying-glass" style="color: var(--text-muted); font-size: 1.25rem;"></i>
+                <i class="ph ph-magnifying-glass" style="color:var(--text-muted);font-size:1.25rem"></i>
                 <input type="text" id="searchEnquiries"
                     placeholder="Search by enquiry number, customer name, or product..."
-                    style="flex: 1; border: none; background: transparent; outline: none; font-size: 1rem;"
+                    style="flex:1;border:none;background:transparent;outline:none;font-size:1rem"
                     oninput="handleSearch()" />
             </div>
-
-            <div class="filter-row">
+            <div class="filter-row" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem">
                 <span class="filter-label"><i class="ph ph-funnel-simple"></i> Status</span>
-                <div class="filter-chip" data-filter="pending" onclick="toggleFilter('pending')">
-                    Pending
-                </div>
-                <div class="filter-chip" data-filter="quoted" onclick="toggleFilter('quoted')">
-                    Quoted
-                </div>
-                <div class="filter-chip" data-filter="successful" onclick="toggleFilter('successful')">
-                    Successful
-                </div>
-                <div class="filter-chip" data-filter="unsuccessful" onclick="toggleFilter('unsuccessful')">
-                    Unsuccessful
-                </div>
+                <div class="filter-chip" data-filter="pending" onclick="toggleFilter('pending')">Unassigned / In Progress</div>
+                <div class="filter-chip" data-filter="needs_response" onclick="toggleFilter('needs_response')">Needs Response</div>
+                <div class="filter-chip" data-filter="quoted" onclick="toggleFilter('quoted')">Vendor Quoted / Priced</div>
+                <div class="filter-chip" data-filter="successful" onclick="toggleFilter('successful')">Completed</div>
+                <div class="filter-chip" data-filter="unsuccessful" onclick="toggleFilter('unsuccessful')">Unsuccessful</div>
+                <div id="viewToggleContainer" style="margin-left:auto"></div>
             </div>
         </div>
 
-        <div id="enquiriesList">
-            <div class="spinner"></div>
-        </div>
-    </div>
+        <div id="enquiriesList"><div class="spinner"></div></div>
 
-    <!-- New Enquiry Modal (Cart Experience) -->
-    <div id="newEnquiryModal" class="modal">
-        <div class="modal-content" style="max-width: 1000px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title">🛒 Create New Enquiry</h3>
-                <button class="close-btn" onclick="closeNewEnquiryModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding: 2.5rem;">
-                <div class="form-group" style="margin-bottom: 2rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 0.75rem; display: block; color: var(--text-secondary);">Select
-                        Customer</label>
-                    <select id="customerSelect" style="width: 100%; padding: 0.875rem; border-radius: 0.5rem;">
+    </main>
+</div>
+
+<!-- ── Modals ──────────────────────────────────────────────────────────────── -->
+
+<!-- New Enquiry Modal -->
+<div id="newEnquiryModal" class="modal">
+    <div class="modal-content" style="max-width:1000px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title">🛒 Create New Enquiry</h3>
+            <button class="close-btn" onclick="closeNewEnquiryModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:2.5rem">
+            <div class="form-group" style="margin-bottom:2rem">
+                <label style="font-weight:600;margin-bottom:0.75rem;display:block;color:var(--text-secondary)">Select Customer</label>
+                <div style="display:flex;gap:0.75rem;align-items:stretch">
+                    <select id="customerSelect" style="flex:1;padding:0.875rem;border-radius:0.5rem">
                         <option value="">Select customer...</option>
                     </select>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 2.5rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 0.75rem; display: block; color: var(--text-secondary);">Search
-                        & Add Materials</label>
-                    <div class="flex gap-3">
-                        <div class="autocomplete-wrapper">
-                            <input type="text" id="productSearch"
-                                placeholder="Search for a material name, brand, or specification..."
-                                oninput="handleProductSearch(this.value)" autocomplete="off"
-                                style="width: 100%; padding: 0.875rem; border-radius: 0.5rem;">
-                            <div id="productSearchResults" class="autocomplete-results"></div>
-                            <input type="hidden" id="selectedProductId">
-                        </div>
-                        <input type="number" id="quantity" placeholder="Qty"
-                            style="width: 100px; padding: 0.875rem; border-radius: 0.5rem;" min="1">
-                        <button class="btn btn-primary" onclick="addToCart()"
-                            style="white-space: nowrap; padding: 0 1.5rem;">
-                            <i class="ph ph-plus-circle"></i> Add to Cart
-                        </button>
-                        <button class="btn btn-secondary" onclick="showAddProductModal()" title="Add New Product Master"
-                            style="padding: 0 1rem;">
-                            <i class="ph ph-plus"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="cartItems" class="mb-4"
-                    style="min-height: 120px; background: var(--bg-page); border-radius: 0.75rem; border: 1px dashed var(--border-strong); padding: 1rem;">
-                </div>
-
-                <div class="flex gap-2"
-                    style="justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 2rem;">
-                    <button class="btn btn-secondary" onclick="closeNewEnquiryModal()"
-                        style="padding: 0.75rem 1.5rem;">Cancel</button>
-                    <button class="btn btn-primary" onclick="createEnquiry()"
-                        style="padding: 0.75rem 2.5rem; font-size: 1rem; font-weight: 600;">
-                        <i class="ph ph-check"></i> Create Enquiry
+                    <button id="addCustomerInlineBtn" class="btn btn-secondary" onclick="showAddCustomerModal()"
+                        title="Add New Customer"
+                        style="display:none;padding:0 1.1rem;border-radius:0.5rem;flex-shrink:0;font-size:0.95rem">
+                        <i class="ph ph-plus"></i> New
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Assign Sourcing Modal -->
-    <div id="assignModal" class="modal">
-        <div class="modal-content" style="max-width: 800px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-user-plus"></i> Assign to Sourcing</h3>
-                <button class="close-btn" onclick="closeAssignModal()">&times;</button>
-            </div>
-
-            <div class="modal-body">
-                <div class="form-group" style="margin-bottom: 2.5rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 1rem; display: block; color: var(--text-secondary); font-size: 0.95rem;">Select
-                        Sourcing Person</label>
-                    <div style="position: relative;">
-                        <select id="sourcingUserSelect"
-                            style="width: 100%; padding: 1rem; border-radius: 0.75rem; border: 1px solid var(--border); font-size: 1rem; background: var(--bg-page); appearance: none;">
-                            <option value="">Select...</option>
-                        </select>
-                        <i class="ph ph-caret-down"
-                            style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);"></i>
+            <div class="form-group" style="margin-bottom:2.5rem">
+                <label style="font-weight:600;margin-bottom:0.75rem;display:block;color:var(--text-secondary)">Search &amp; Add Materials</label>
+                <div class="flex gap-3">
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="productSearch" placeholder="Search for a material name, brand, or specification..."
+                            oninput="handleProductSearch(this.value)" autocomplete="off"
+                            style="width:100%;padding:0.875rem;border-radius:0.5rem">
+                        <div id="productSearchResults" class="autocomplete-results"></div>
+                        <input type="hidden" id="selectedProductId">
                     </div>
-                </div>
-
-                <div class="form-group" style="margin: 0;">
-                    <label class="flex-between" style="margin-bottom: 1rem;">
-                        <span style="font-weight: 600; color: var(--text-secondary); font-size: 0.95rem;">Select Items
-                            to Assign</span>
-                        <button class="btn btn-sm btn-link" onclick="toggleSelectAllAssign()"
-                            style="text-decoration: none; font-weight: 600;">Select All</button>
-                    </label>
-                    <div id="assignModalItems">
-                        <!-- Items will be injected here as cards by sales.js -->
-                    </div>
+                    <input type="number" id="quantity" placeholder="Qty"
+                        style="width:100px;padding:0.875rem;border-radius:0.5rem" min="1">
+                    <button class="btn btn-primary" onclick="addToCart()" style="white-space:nowrap;padding:0 1.5rem">
+                        <i class="ph ph-plus-circle"></i> Add to Cart
+                    </button>
+                    <button class="btn btn-secondary" onclick="showAddProductModal()" title="Add New Product Master" style="padding:0 1rem">
+                        <i class="ph ph-plus"></i>
+                    </button>
                 </div>
             </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeAssignModal()"
-                    style="padding: 0.75rem 1.5rem;">Cancel</button>
-                <button class="btn btn-primary" onclick="assignEnquiry()"
-                    style="padding: 0.75rem 2.5rem; font-size: 1rem;">
-                    <i class="ph ph-check"></i> Assign Selected
+            <div id="cartItems" class="mb-4"
+                style="min-height:120px;background:var(--bg-page);border-radius:0.75rem;border:1px dashed var(--border-strong);padding:1rem"></div>
+            <div class="flex gap-2" style="justify-content:flex-end;border-top:1px solid var(--border);padding-top:2rem">
+                <button class="btn btn-secondary" onclick="closeNewEnquiryModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+                <button class="btn btn-primary" onclick="createEnquiry()" style="padding:0.75rem 2.5rem;font-size:1rem;font-weight:600">
+                    <i class="ph ph-check"></i> Create Enquiry
                 </button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Combine Enquiries Modal -->
-    <!-- Combine Enquiries Modal -->
-    <div id="combineModal" class="modal">
-        <div class="modal-content" style="max-width: 800px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-link"></i> Combine with Existing Enquiry</h3>
-                <button class="close-btn" onclick="closeCombineModal()">&times;</button>
-            </div>
-
-            <div class="modal-body" style="padding: 2.5rem;">
-                <p class="text-muted mb-4" style="font-size: 0.95rem;">Select materials from this enquiry to combine
-                    with an existing ongoing enquiry for the same customer.</p>
-
-                <div class="form-group" style="margin-bottom: 2.5rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 1rem; display: block; color: var(--text-secondary); font-size: 0.95rem;">Target
-                        Enquiry</label>
-                    <select id="targetEnquirySelect"
-                        style="width: 100%; padding: 1rem; border-radius: 0.75rem; border: 1px solid var(--border); font-size: 1rem; background: var(--bg-page);">
-                        <option value="">Select enquiry...</option>
+<!-- Assign Sourcing Modal -->
+<div id="assignModal" class="modal">
+    <div class="modal-content" style="max-width:800px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-user-plus"></i> Assign to Sourcing</h3>
+            <button class="close-btn" onclick="closeAssignModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom:2.5rem">
+                <label style="font-weight:600;margin-bottom:1rem;display:block;color:var(--text-secondary);font-size:0.95rem">Select Sourcing Person</label>
+                <div style="position:relative">
+                    <select id="sourcingUserSelect" style="width:100%;padding:1rem;border-radius:0.75rem;border:1px solid var(--border);font-size:1rem;background:var(--bg-page);appearance:none">
+                        <option value="">Select...</option>
                     </select>
+                    <i class="ph ph-caret-down" style="position:absolute;right:1rem;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)"></i>
                 </div>
-
-                <div id="combineItemsList" class="mb-4" style="max-height: 400px; overflow-y: auto; padding: 0.25rem;">
-                </div>
-
-                <div class="flex gap-2"
-                    style="justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <button class="btn btn-secondary" onclick="closeCombineModal()"
-                        style="padding: 0.75rem 1.5rem;">Skip</button>
-                    <button class="btn btn-success" onclick="combineEnquiries()"
-                        style="padding: 0.75rem 2.5rem; font-size: 1rem;">
-                        <i class="ph ph-link"></i> Combine Selected
-                    </button>
-                </div>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label class="flex-between" style="margin-bottom:1rem">
+                    <span style="font-weight:600;color:var(--text-secondary);font-size:0.95rem">Select Items to Assign</span>
+                    <button class="btn btn-sm btn-link" onclick="toggleSelectAllAssign()" style="text-decoration:none;font-weight:600">Select All</button>
+                </label>
+                <div id="assignModalItems"></div>
             </div>
         </div>
-    </div>
-
-    <!-- Edit Item Modal -->
-    <!-- Edit Item Modal -->
-    <div id="editItemModal" class="modal">
-        <div class="modal-content" style="max-width: 500px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-pencil-simple"></i> Edit Item</h3>
-                <button class="close-btn" onclick="closeEditItemModal()">&times;</button>
-            </div>
-
-            <div class="modal-body" style="padding: 2.5rem;">
-                <div class="form-group" style="margin-bottom: 2.5rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 1rem; display: block; color: var(--text-secondary); font-size: 0.95rem;">Quantity</label>
-                    <input type="number" id="editQuantity" min="1"
-                        style="width: 100%; padding: 1rem; border-radius: 0.75rem; border: 1px solid var(--border); font-size: 1.1rem; background: var(--bg-page);">
-                </div>
-
-                <div class="flex gap-2"
-                    style="justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <button class="btn btn-secondary" onclick="closeEditItemModal()"
-                        style="padding: 0.75rem 1.5rem;">Cancel</button>
-                    <button class="btn btn-primary" onclick="saveItemEdit()"
-                        style="padding: 0.75rem 2.5rem; font-size: 1rem;">Save</button>
-                </div>
-            </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAssignModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+            <button class="btn btn-primary" onclick="assignEnquiry()" style="padding:0.75rem 2.5rem;font-size:1rem">
+                <i class="ph ph-check"></i> Assign Selected
+            </button>
         </div>
     </div>
+</div>
 
-    <!-- Enter Sales Price Modal -->
-    <!-- Enter Sales Price Modal -->
-    <div id="salesPriceModal" class="modal">
-        <div class="modal-content"
-            style="max-width: 600px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0;">
-            <div class="modal-header" style="flex-shrink: 0; padding: 1.5rem; border-bottom: 1px solid var(--border);">
-                <h3 class="modal-title"><i class="ph ph-currency-inr"></i> Enter Sales Price</h3>
-                <button class="close-btn" onclick="closeSalesPriceModal()">&times;</button>
-            </div>
-
-            <div class="modal-body" style="padding: 1.5rem; overflow-y: auto; flex: 1;">
-                <div id="salesPriceItemInfo" class="mb-4"
-                    style="background: var(--bg-card); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid var(--border);">
-                </div>
-
-                <div class="row mb-4" style="display: flex; gap: 1rem;">
-                    <div class="form-group" style="flex: 1; margin: 0;">
-                        <label
-                            style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: var(--text-secondary); font-size: 0.9rem;">Cost
-                            Price (Unit)</label>
-                        <div style="position: relative;">
-                            <span
-                                style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);">₹</span>
-                            <input type="number" id="costPriceDisplay" disabled
-                                style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 1.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-muted); font-weight: 600;">
-                        </div>
-                    </div>
-                    <div class="form-group" style="flex: 1; margin: 0;">
-                        <label
-                            style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: var(--text-secondary); font-size: 0.9rem;">Margin
-                            %</label>
-                        <div style="position: relative;">
-                            <input type="number" id="salesMarginInput" step="0.1"
-                                oninput="calculateSalesPriceFromMargin()" placeholder="0"
-                                style="width: 100%; padding: 0.75rem 2rem 0.75rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); font-weight: 600;">
-                            <span
-                                style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);">%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 2rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 1rem; display: block; color: var(--text-secondary); font-size: 0.95rem;">Sales
-                        Price (Per Unit)</label>
-                    <div style="position: relative;">
-                        <span
-                            style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted);">₹</span>
-                        <input type="number" id="salesPriceInput" min="0" step="0.01"
-                            oninput="calculateMarginFromSalesPrice()"
-                            style="width: 100%; padding: 1rem 1rem 1rem 2.5rem; border-radius: 0.75rem; border: 1px solid var(--border); font-size: 1.25rem; font-weight: 600; background: var(--bg-page);">
-                    </div>
-                </div>
-
-                <!-- Total Price Display -->
-                <div class="card"
-                    style="background: var(--primary-light); padding: 1.25rem; margin: 0; border-radius: 0.75rem; border: 1px solid rgba(var(--primary-rgb), 0.2);">
-                    <div class="flex-between">
-                        <span style="font-weight: 600; font-size: 1.1rem; color: var(--primary-dark);">Total Sales
-                            Amount</span>
-                        <span id="salesTotalPrice"
-                            style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">₹0</span>
-                    </div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; text-align: right;"
-                        id="salesTotalBreakdown">
-                        Sales Price × Quantity
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-footer"
-                style="flex-shrink: 0; padding: 1.5rem; border-top: 1px solid var(--border); background: var(--bg-card); display: flex; justify-content: flex-end; gap: 0.75rem;">
-                <button class="btn btn-secondary" onclick="closeSalesPriceModal()"
-                    style="padding: 0.75rem 1.5rem;">Cancel</button>
-                <button class="btn btn-primary" onclick="saveSalesPrice()"
-                    style="padding: 0.75rem 2.5rem; font-size: 1rem;">Save Price</button>
-            </div>
+<!-- Combine Enquiries Modal -->
+<div id="combineModal" class="modal">
+    <div class="modal-content" style="max-width:800px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-link"></i> Combine with Existing Enquiry</h3>
+            <button class="close-btn" onclick="closeCombineModal()">&times;</button>
         </div>
-    </div>
-
-    <!-- View Item Quotes Modal -->
-    <!-- View Item Quotes Modal -->
-    <div id="viewQuotesModal" class="modal">
-        <div class="modal-content" style="max-width: 900px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-list-checks"></i> Vendor Quotations</h3>
-                <button class="close-btn" onclick="closeViewQuotesModal()">&times;</button>
+        <div class="modal-body" style="padding:2.5rem">
+            <p class="text-muted mb-4" style="font-size:0.95rem">Select materials from this enquiry to combine with an existing ongoing enquiry for the same customer.</p>
+            <div class="form-group" style="margin-bottom:2.5rem">
+                <label style="font-weight:600;margin-bottom:1rem;display:block;color:var(--text-secondary);font-size:0.95rem">Target Enquiry</label>
+                <select id="targetEnquirySelect" style="width:100%;padding:1rem;border-radius:0.75rem;border:1px solid var(--border);font-size:1rem;background:var(--bg-page)">
+                    <option value="">Select enquiry...</option>
+                </select>
             </div>
-            <div class="modal-body" style="padding: 2rem;">
-                <div id="viewQuotesContent" style="min-height: 200px;"></div>
-                <div class="flex gap-2 mt-4"
-                    style="justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <button class="btn btn-secondary" onclick="closeViewQuotesModal()"
-                        style="padding: 0.75rem 2rem;">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- WYSIWYG Quotation Editor Modal -->
-    <div id="downloadQuotationModal" class="modal">
-        <div class="modal-content" style="max-width: 1000px; width: 95%; max-height: 95vh;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-file-pdf"></i> Edit & Download Quotation</h3>
-                <button class="close-btn" onclick="closeDownloadQuotationModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding: 0; overflow-y: auto; max-height: calc(95vh - 140px);">
-                <!-- WYSIWYG PDF template will be rendered here -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeDownloadQuotationModal()"
-                    style="padding: 0.75rem 1.5rem;">Cancel</button>
-                <button class="btn btn-primary" onclick="generateEditedPDF()" style="padding: 0.75rem 2.5rem;">
-                    <i class="ph ph-file-pdf"></i> Download PDF
+            <div id="combineItemsList" class="mb-4" style="max-height:400px;overflow-y:auto;padding:0.25rem"></div>
+            <div class="flex gap-2" style="justify-content:flex-end;padding-top:1rem;border-top:1px solid var(--border)">
+                <button class="btn btn-secondary" onclick="closeCombineModal()" style="padding:0.75rem 1.5rem">Skip</button>
+                <button class="btn btn-success" onclick="combineEnquiries()" style="padding:0.75rem 2.5rem;font-size:1rem">
+                    <i class="ph ph-link"></i> Combine Selected
                 </button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Bulk Upload Modal -->
-    <div id="bulkUploadModal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-upload-simple"></i> Bulk Upload Enquiries</h3>
-                <button class="close-btn" onclick="closeBulkUploadModal()">&times;</button>
+<!-- Edit Item Modal -->
+<div id="editItemModal" class="modal">
+    <div class="modal-content" style="max-width:500px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-pencil-simple"></i> Edit Item</h3>
+            <button class="close-btn" onclick="closeEditItemModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:2.5rem">
+            <div class="form-group" style="margin-bottom:2.5rem">
+                <label style="font-weight:600;margin-bottom:1rem;display:block;color:var(--text-secondary);font-size:0.95rem">Quantity</label>
+                <input type="number" id="editQuantity" min="1"
+                    style="width:100%;padding:1rem;border-radius:0.75rem;border:1px solid var(--border);font-size:1.1rem;background:var(--bg-page)">
             </div>
-
-            <div class="modal-body">
-                <div class="bulk-upload-tabs">
-                    <button class="bulk-tab active" data-tab="excel" onclick="switchBulkTab('excel')">
-                        <i class="ph ph-file-xls"></i> Upload Excel
-                    </button>
-                    <button class="bulk-tab" data-tab="sheets" onclick="switchBulkTab('sheets')">
-                        <i class="ph ph-google-logo"></i> Paste Sheet Link
-                    </button>
-                </div>
-
-                <!-- Excel Upload Tab -->
-                <div id="excelTab" class="bulk-tab-content active">
-                    <div class="file-upload-zone" id="dropZone">
-                        <i class="ph ph-file-arrow-up" style="font-size: 3rem; color: var(--primary);"></i>
-                        <h4>Drag & Drop Excel File</h4>
-                        <p class="text-muted">or click to browse</p>
-                        <p class="text-muted" style="font-size: 0.8rem;">Supported: .xlsx, .xls, .csv</p>
-                        <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display: none;">
-                    </div>
-                    <div id="fileInfo" style="display: none; margin-top: 1rem;">
-                        <div class="alert alert-success">
-                            <i class="ph ph-check-circle"></i>
-                            <span id="fileName"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sheets Link Tab -->
-                <div id="sheetsTab" class="bulk-tab-content">
-                    <div style="padding: 1.5rem 0;">
-                        <label for="sheetsLinkInput">Google Sheets URL</label>
-                        <input type="text" id="sheetsLinkInput" placeholder="https://docs.google.com/spreadsheets/d/..."
-                            class="mb-3">
-                        <div class="alert alert-info">
-                            <i class="ph ph-info"></i>
-                            <span>Make sure the sheet is shared publicly or accessible via link</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <a href="#" onclick="downloadTemplate()" class="text-primary flex gap-2 items-center"
-                        style="text-decoration: none; font-weight: 500;">
-                        <i class="ph ph-download-simple"></i> Download Excel Template
-                    </a>
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeBulkUploadModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="processBulkUpload()">
-                    <i class="ph ph-check"></i> Process File
-                </button>
+            <div class="flex gap-2" style="justify-content:flex-end;padding-top:1rem;border-top:1px solid var(--border)">
+                <button class="btn btn-secondary" onclick="closeEditItemModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+                <button class="btn btn-primary" onclick="saveItemEdit()" style="padding:0.75rem 2.5rem;font-size:1rem">Save</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Processing Modal -->
-    <div id="processingModal" class="modal">
-        <div class="modal-content" style="max-width: 500px; text-align: center;">
-            <div style="padding: 2rem;">
-                <div class="processing-spinner">
-                    <i class="ph ph-circle-notch ph-spin" style="font-size: 4rem; color: var(--primary);"></i>
+<!-- Enter Sales Price Modal -->
+<div id="salesPriceModal" class="modal">
+    <div class="modal-content" style="max-width:600px;width:95%;max-height:85vh;display:flex;flex-direction:column;padding:0">
+        <div class="modal-header" style="flex-shrink:0;padding:1.5rem;border-bottom:1px solid var(--border)">
+            <h3 class="modal-title"><i class="ph ph-currency-inr"></i> Enter Sales Price</h3>
+            <button class="close-btn" onclick="closeSalesPriceModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:1.5rem;overflow-y:auto;flex:1">
+            <div id="salesPriceItemInfo" class="mb-4" style="background:var(--bg-card);padding:1.25rem;border-radius:0.75rem;border:1px solid var(--border)"></div>
+            <div class="row mb-4" style="display:flex;gap:1rem">
+                <div class="form-group" style="flex:1;margin:0">
+                    <label style="font-weight:600;margin-bottom:0.5rem;display:block;color:var(--text-secondary);font-size:0.9rem">Cost Price (Unit)</label>
+                    <div style="position:relative">
+                        <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-muted)">₹</span>
+                        <input type="number" id="costPriceDisplay" disabled
+                            style="width:100%;padding:0.75rem 0.75rem 0.75rem 1.75rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-muted);font-weight:600">
+                    </div>
                 </div>
-                <h3 class="mt-3">Processing Upload...</h3>
-                <p class="text-muted" id="processingStage">Reading file...</p>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progressBar"></div>
+                <div class="form-group" style="flex:1;margin:0">
+                    <label style="font-weight:600;margin-bottom:0.5rem;display:block;color:var(--text-secondary);font-size:0.9rem">Margin %</label>
+                    <div style="position:relative">
+                        <input type="number" id="salesMarginInput" step="0.1" oninput="calculateSalesPriceFromMargin()" placeholder="0"
+                            style="width:100%;padding:0.75rem 2rem 0.75rem 0.75rem;border-radius:0.5rem;border:1px solid var(--border);font-weight:600">
+                        <span style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-muted)">%</span>
+                    </div>
                 </div>
-                <p class="text-muted" style="font-size: 0.875rem; margin-top: 1rem;">
-                    <i class="ph ph-hourglass"></i> <span id="progressPercent">0%</span>
-                </p>
+            </div>
+            <div class="form-group" style="margin-bottom:2rem">
+                <label style="font-weight:600;margin-bottom:1rem;display:block;color:var(--text-secondary);font-size:0.95rem">Sales Price (Per Unit)</label>
+                <div style="position:relative">
+                    <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-weight:600;color:var(--text-muted)">₹</span>
+                    <input type="number" id="salesPriceInput" min="0" step="0.01" oninput="calculateMarginFromSalesPrice()"
+                        style="width:100%;padding:1rem 1rem 1rem 2.5rem;border-radius:0.75rem;border:1px solid var(--border);font-size:1.25rem;font-weight:600;background:var(--bg-page)">
+                </div>
+            </div>
+            <div class="card" style="background:var(--primary-light);padding:1.25rem;margin:0;border-radius:0.75rem;border:1px solid rgba(var(--primary-rgb),0.2)">
+                <div class="flex-between">
+                    <span style="font-weight:600;font-size:1.1rem;color:var(--primary-dark)">Total Sales Amount</span>
+                    <span id="salesTotalPrice" style="font-size:1.5rem;font-weight:700;color:var(--primary)">₹0</span>
+                </div>
+                <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;text-align:right" id="salesTotalBreakdown">Sales Price × Quantity</div>
+            </div>
+        </div>
+        <div class="modal-footer" style="flex-shrink:0;padding:1.5rem;border-top:1px solid var(--border);background:var(--bg-card);display:flex;justify-content:flex-end;gap:0.75rem">
+            <button class="btn btn-secondary" onclick="closeSalesPriceModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+            <button class="btn btn-primary" onclick="saveSalesPrice()" style="padding:0.75rem 2.5rem;font-size:1rem">Save Price</button>
+        </div>
+    </div>
+</div>
+
+<!-- Close Reason Modal -->
+<div id="closeReasonModal" class="modal">
+    <div class="modal-content" style="max-width:480px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title" id="closeReasonModalTitle">Close Enquiry</h3>
+            <button class="close-btn" onclick="document.getElementById('closeReasonModal').classList.remove('active')">&times;</button>
+        </div>
+        <div style="padding:1.5rem">
+            <p style="margin-bottom:1rem;color:var(--text-secondary);font-size:0.9rem">Please provide a reason for closing. This will be recorded on the enquiry.</p>
+            <label style="font-size:0.875rem;font-weight:600">Reason <span style="color:#ef4444">*</span></label>
+            <textarea id="closeReasonInput" rows="3" style="width:100%;margin-top:0.4rem;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.875rem;resize:vertical;background:var(--bg-secondary)" placeholder="e.g. Customer cancelled, budget not approved..."></textarea>
+            <div id="closeReasonError" style="color:#ef4444;font-size:0.8rem;margin-top:0.4rem;display:none">Reason is required to close.</div>
+        </div>
+        <div class="flex gap-2" style="padding:1rem 1.5rem;border-top:1px solid var(--border);justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="document.getElementById('closeReasonModal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-unsuccessful" onclick="confirmCloseWithReason()"><i class="ph ph-x-circle"></i> Confirm Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- View Vendor Quotes Modal -->
+<div id="viewQuotesModal" class="modal">
+    <div class="modal-content" style="max-width:900px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-list-checks"></i> Vendor Quotations</h3>
+            <button class="close-btn" onclick="closeViewQuotesModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:2rem">
+            <div id="viewQuotesContent" style="min-height:200px"></div>
+            <div class="flex gap-2 mt-4" style="justify-content:flex-end;padding-top:1rem;border-top:1px solid var(--border)">
+                <button class="btn btn-secondary" onclick="closeViewQuotesModal()" style="padding:0.75rem 2rem">Close</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Review/Confirmation Modal -->
-    <div id="reviewBulkModal" class="modal">
-        <div class="modal-content" style="max-width: 1200px;">
-            <div class="modal-header">
-                <h3 class="modal-title">
-                    <i class="ph ph-clipboard-text"></i> Review Bulk Upload -
-                    <span id="enquiryCount">0</span> Enquiries
-                </h3>
-                <button class="close-btn" onclick="closeReviewModal()">&times;</button>
-            </div>
-
-            <div class="modal-body" id="reviewContent">
-                <!-- Dynamically populated enquiry cards -->
-            </div>
-
-            <div class="modal-footer flex-between">
-                <button class="btn btn-secondary" onclick="closeReviewModal()">
-                    <i class="ph ph-x"></i> Cancel
-                </button>
-                <button class="btn btn-primary" onclick="confirmBulkCreate()">
-                    <i class="ph ph-check-circle"></i> Create <span id="createCount">0</span> Enquiries
-                </button>
-            </div>
+<!-- Download Quotation Modal -->
+<div id="downloadQuotationModal" class="modal">
+    <div class="modal-content" style="max-width:1000px;width:95%;max-height:95vh">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-file-pdf"></i> Edit &amp; Download Quotation</h3>
+            <button class="close-btn" onclick="closeDownloadQuotationModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:0;overflow-y:auto;max-height:calc(95vh - 140px)"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDownloadQuotationModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+            <button class="btn btn-primary" onclick="generateEditedPDF()" style="padding:0.75rem 2.5rem">
+                <i class="ph ph-file-pdf"></i> Download PDF
+            </button>
         </div>
     </div>
+</div>
 
-
-    <!-- jsPDF Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
-    <!-- docx and FileSaver for Word Export -->
-    <script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-    <!-- SheetJS for Excel Parsing -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
-    <!-- Add Product Modal -->
-    <div id="addProductModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-plus-circle"></i> Create New Product</h3>
-                <button class="close-btn" onclick="closeAddProductModal()">&times;</button>
+<!-- Bulk Upload Modal -->
+<div id="bulkUploadModal" class="modal">
+    <div class="modal-content" style="max-width:600px">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-upload-simple"></i> Bulk Upload Enquiries</h3>
+            <button class="close-btn" onclick="closeBulkUploadModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="bulk-upload-tabs">
+                <button class="bulk-tab active" data-tab="excel" onclick="switchBulkTab('excel')"><i class="ph ph-file-xls"></i> Upload Excel</button>
+                <button class="bulk-tab" data-tab="sheets" onclick="switchBulkTab('sheets')"><i class="ph ph-google-logo"></i> Paste Sheet Link</button>
             </div>
-
-            <div style="padding: 1.5rem;">
-                <div class="form-group mb-3">
-                    <label for="newProductName">Product Name *</label>
-                    <input type="text" id="newProductName" placeholder="Enter product name" required>
+            <div id="excelTab" class="bulk-tab-content active">
+                <div class="file-upload-zone" id="dropZone">
+                    <i class="ph ph-file-arrow-up" style="font-size:3rem;color:var(--primary)"></i>
+                    <h4>Drag &amp; Drop Excel File</h4>
+                    <p class="text-muted">or click to browse</p>
+                    <p class="text-muted" style="font-size:0.8rem">Supported: .xlsx, .xls, .csv</p>
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none">
                 </div>
+                <div id="fileInfo" style="display:none;margin-top:1rem">
+                    <div class="alert alert-success"><i class="ph ph-check-circle"></i> <span id="fileName"></span></div>
+                </div>
+            </div>
+            <div id="sheetsTab" class="bulk-tab-content">
+                <div style="padding:1.5rem 0">
+                    <label for="sheetsLinkInput">Google Sheets URL</label>
+                    <input type="text" id="sheetsLinkInput" placeholder="https://docs.google.com/spreadsheets/d/..." class="mb-3">
+                    <div class="alert alert-info"><i class="ph ph-info"></i> <span>Make sure the sheet is shared publicly or accessible via link</span></div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="#" onclick="downloadTemplate()" class="text-primary flex gap-2 items-center" style="text-decoration:none;font-weight:500">
+                    <i class="ph ph-download-simple"></i> Download Excel Template
+                </a>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeBulkUploadModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="processBulkUpload()"><i class="ph ph-check"></i> Process File</button>
+        </div>
+    </div>
+</div>
 
-                <div class="form-group mb-3">
-                    <label for="newProductUOM">Unit of Measurement (UOM) *</label>
-                    <select id="newProductUOM" required>
-                        <option value="">-- Select UOM --</option>
-                        <option value="Pieces">Pieces</option>
-                        <option value="Kg">Kg</option>
-                        <option value="Tons">Tons</option>
-                        <option value="Meters">Meters</option>
-                        <option value="Liters">Liters</option>
-                        <option value="Bags">Bags</option>
-                        <option value="Square Meters">Square Meters</option>
-                        <option value="Cubic Feet">Cubic Feet</option>
-                        <option value="Box">Box</option>
+<!-- Processing Modal -->
+<div id="processingModal" class="modal">
+    <div class="modal-content" style="max-width:500px;text-align:center">
+        <div style="padding:2rem">
+            <div class="processing-spinner"><i class="ph ph-circle-notch ph-spin" style="font-size:4rem;color:var(--primary)"></i></div>
+            <h3 class="mt-3">Processing Upload...</h3>
+            <p class="text-muted" id="processingStage">Reading file...</p>
+            <div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+            <p class="text-muted" style="font-size:0.875rem;margin-top:1rem"><i class="ph ph-hourglass"></i> <span id="progressPercent">0%</span></p>
+        </div>
+    </div>
+</div>
+
+<!-- Review Bulk Modal -->
+<div id="reviewBulkModal" class="modal">
+    <div class="modal-content" style="max-width:1200px">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-clipboard-text"></i> Review Bulk Upload — <span id="enquiryCount">0</span> Enquiries</h3>
+            <button class="close-btn" onclick="closeReviewModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="reviewContent"></div>
+        <div class="modal-footer flex-between">
+            <button class="btn btn-secondary" onclick="closeReviewModal()"><i class="ph ph-x"></i> Cancel</button>
+            <button class="btn btn-primary" onclick="confirmBulkCreate()">
+                <i class="ph ph-check-circle"></i> Create <span id="createCount">0</span> Enquiries
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div id="addProductModal" class="modal">
+    <div class="modal-content" style="max-width:500px">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-plus-circle"></i> Create New Product</h3>
+            <button class="close-btn" onclick="closeAddProductModal()">&times;</button>
+        </div>
+        <div style="padding:1.5rem">
+            <div class="form-group mb-3">
+                <label for="newProductName">Product Name *</label>
+                <input type="text" id="newProductName" placeholder="Enter product name" required>
+            </div>
+            <div class="form-group mb-3">
+                <label for="newProductUOM">Unit of Measurement (UOM) *</label>
+                <select id="newProductUOM" required>
+                    <option value="">-- Select UOM --</option>
+                    <option>Pieces</option><option>Kg</option><option>Tons</option>
+                    <option>Meters</option><option>Liters</option><option>Bags</option>
+                    <option>Square Meters</option><option>Cubic Feet</option><option>Box</option>
+                </select>
+            </div>
+            <div class="form-group mb-3">
+                <label for="newProductBrand">Brand</label>
+                <input type="text" id="newProductBrand" value="Generic" placeholder="Enter brand">
+            </div>
+            <div class="form-group mb-3">
+                <label for="newProductSpec">Specification</label>
+                <input type="text" id="newProductSpec" value="As required" placeholder="Enter specification">
+            </div>
+            <div class="alert alert-info"><i class="ph ph-info"></i> <span>This product will be created and automatically selected.</span></div>
+        </div>
+        <div class="flex gap-2" style="padding:0 1.5rem 1.5rem">
+            <button class="btn btn-secondary" onclick="closeAddProductModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="handleProductCreation()"><i class="ph ph-check"></i> Create &amp; Select</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add New Customer Modal -->
+<div id="addCustomerModal" class="modal">
+    <div class="modal-content" style="max-width:520px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-user-plus"></i> Add New Customer</h3>
+            <button class="close-btn" onclick="closeAddCustomerModal()">&times;</button>
+        </div>
+        <div style="padding:1.75rem">
+            <div class="form-group" style="margin-bottom:1.25rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Company / Customer Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="newCustomerName" placeholder="e.g. Acme Construction Pvt. Ltd."
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div class="form-group" style="margin-bottom:1.25rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Contact Person</label>
+                <input type="text" id="newCustomerContact" placeholder="e.g. Rajesh Sharma"
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Phone</label>
+                    <input type="tel" id="newCustomerPhone" placeholder="+91 98765 43210"
+                        style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Email</label>
+                    <input type="email" id="newCustomerEmail" placeholder="contact@example.com"
+                        style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:1.25rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Address</label>
+                <input type="text" id="newCustomerAddress" placeholder="City, State"
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div class="form-group" style="margin-bottom:1.5rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">
+                    Assign Key Account Manager
+                    <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem;margin-left:0.4rem">(optional)</span>
+                </label>
+                <div style="position:relative">
+                    <select id="newCustomerKAM"
+                        style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page);appearance:none">
+                        <option value="">— No KAM assigned —</option>
                     </select>
+                    <i class="ph ph-caret-down" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)"></i>
                 </div>
-
-                <div class="form-group mb-3">
-                    <label for="newProductBrand">Brand</label>
-                    <input type="text" id="newProductBrand" value="Generic" placeholder="Enter brand">
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="newProductSpec">Specification</label>
-                    <input type="text" id="newProductSpec" value="As required" placeholder="Enter specification">
-                </div>
-
-                <div class="alert alert-info">
-                    <i class="ph ph-info"></i>
-                    <span>This product will be created and automatically selected.</span>
+                <div id="kamLoadingHint" style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;display:none">
+                    <i class="ph ph-circle-notch ph-spin"></i> Loading KAM list…
                 </div>
             </div>
-
-            <div class="flex gap-2" style="padding: 0 1.5rem 1.5rem;">
-                <button class="btn btn-secondary" onclick="closeAddProductModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="handleProductCreation()">
-                    <i class="ph ph-check"></i> Create & Select
-                </button>
-            </div>
+            <div class="alert alert-info" style="margin:0"><i class="ph ph-info"></i> <span>Customer will be created and automatically selected in this enquiry.</span></div>
+        </div>
+        <div style="display:flex;gap:0.75rem;padding:0 1.75rem 1.75rem;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeAddCustomerModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+            <button class="btn btn-primary" onclick="handleCustomerCreation()" style="padding:0.75rem 2rem">
+                <i class="ph ph-check"></i> Create &amp; Select
+            </button>
         </div>
     </div>
+</div>
 
-    <script src="/js/auth.js"></script>
-    <script src="/js/layout.js"></script>
-    <script src="/js/notifications.js"></script>
-    <script src="/js/pdf-generator.js"></script>
-    <script src="/js/docx-generator.js"></script>
-    <script src="/js/quotation-editor.js"></script>
-    <script src="/js/sales.js"></script>
-    <script src="/js/bulk-upload.js"></script>
+<!-- ── Scripts ────────────────────────────────────────────────────────────── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/layout.js"></script>
+<script src="/js/notifications.js"></script>
+<script src="/js/pdf-generator.js"></script>
+<script src="/js/docx-generator.js"></script>
+<script src="/js/quotation-editor.js"></script>
+<script src="/js/sales.js"></script>
+<script src="/js/bulk-upload.js"></script>
 </body>
-
 </html>

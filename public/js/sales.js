@@ -9,17 +9,28 @@ let currentItemId = null;
 let newlyCreatedEnquiry = null;
 let selectedForQuote = {}; // Map of enquiryId -> Set(itemIds)
 let activeFilters = new Set();
+let viewMode = localStorage.getItem('viewMode_sales') || 'enquiry'; // 'enquiry' | 'material' | 'items'
 
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     const user = checkAuth();
-    if (!user || user.role !== 'sales') {
-        window.location.href = '/';
+    if (!user) return;
+    if (!hasAnyPermission(['enquiry.create', 'enquiry.view.own', 'enquiry.view.all', 'sales_price.add', 'sales_price.approve'])) {
+        showToast('You do not have permission to access the Sales dashboard', 'error');
+        setTimeout(() => window.location.href = '/', 1500);
         return;
     }
 
-
+    // Show permission-gated action buttons
+    if (hasPermission('enquiry.create')) {
+        const btn = document.getElementById('newEnquiryBtn');
+        if (btn) btn.style.display = '';
+    }
+    if (hasPermission('enquiry.bulk_create')) {
+        const btn = document.getElementById('bulkUploadBtn');
+        if (btn) btn.style.display = '';
+    }
 
     await loadData();
 
@@ -44,11 +55,18 @@ async function loadData() {
         ]);
 
         renderInsights();
+        const tog = document.getElementById('viewToggleContainer');
+        if (tog) tog.innerHTML = getViewToggleHTML(viewMode);
         renderEnquiries();
         populateProductSelect();
         populateCustomerSelect();
         populateSourcingSelect();
         handleUrlParameters();
+        // Show inline customer create button if permitted
+        if (hasPermission('customer.create')) {
+            const btn = document.getElementById('addCustomerInlineBtn');
+            if (btn) btn.style.display = '';
+        }
     } catch (error) {
         console.error('Load data error:', error);
         showToast('Failed to load data', 'error');
@@ -68,7 +86,7 @@ function renderInsights() {
     const urgentCount = personalEnquiries.filter(e => {
         const isOld = (now - new Date(e.createdAt)) > (48 * 60 * 60 * 1000);
         const notCompleted = e.status === 'active';
-        const notFullyQuoted = e.items && e.items.some(i => ['pending', 'assigned'].includes(i.status));
+        const notFullyQuoted = e.items && e.items.some(i => ['unassigned', 'pending', 'assigned', 'in_sales_query', 'sales_query_resolved'].includes(i.status));
         return isOld && notCompleted && notFullyQuoted;
     }).length;
 
@@ -83,7 +101,7 @@ function renderInsights() {
     // 3. Ready for Customer: Personal enquiries where ALL items are 'sales_priced' or 'completed'
     const readyForCustomer = personalEnquiries.filter(e => {
         if (!e.items || e.items.length === 0) return false;
-        const allPriced = e.items.every(item => ['sales_priced', 'completed'].includes(item.status));
+        const allPriced = e.items.every(item => ['priced', 'sales_priced', 'completed'].includes(item.status));
         return e.status === 'active' && allPriced;
     }).length;
 
@@ -110,6 +128,309 @@ function renderInsights() {
     if (waitingEl) waitingEl.textContent = waitingOnVendor;
     if (readyEl) readyEl.textContent = readyForCustomer;
     if (revenueEl) revenueEl.textContent = '₹' + Math.round(monthlyVolume).toLocaleString('en-IN');
+}
+
+// ── View Mode ────────────────────────────────────────────────────────────────
+
+function setViewMode(mode) {
+    viewMode = mode;
+    localStorage.setItem('viewMode_sales', mode);
+    const tog = document.getElementById('viewToggleContainer');
+    if (tog) tog.innerHTML = getViewToggleHTML(mode);
+    renderEnquiries();
+}
+
+// Item-level status filter (mirrors matchesFilter but at item granularity)
+function itemMatchesStatusFilter(item) {
+    if (activeFilters.size === 0) return true;
+    return Array.from(activeFilters).some(f => {
+        if (f === 'successful') return item.status === 'completed';
+        if (f === 'unsuccessful') return item.status === 'unsuccessful';
+        if (f === 'pending') return ['unassigned', 'pending', 'assigned', 'in_sales_query', 'sales_query_resolved'].includes(item.status);
+        if (f === 'needs_response') return item.status === 'in_sales_query';
+        if (f === 'quoted') return ['vendor_quoted', 'priced', 'sales_priced'].includes(item.status);
+        return false;
+    });
+}
+
+function renderMaterialView() {
+    const container = document.getElementById('enquiriesList');
+    const searchTerm = (document.getElementById('searchEnquiries')?.value || '').toLowerCase();
+
+    const entries = [];
+    for (const enq of enquiries) {
+        for (const item of (enq.items || [])) {
+            if (!itemMatchesStatusFilter(item)) continue;
+            if (searchTerm) {
+                const mat = (item.productId?.materialName || '').toLowerCase();
+                const brand = (item.productId?.brand || '').toLowerCase();
+                const spec = (item.productId?.specification || '').toLowerCase();
+                const enqNum = (enq.enquiryNumber || '').toLowerCase();
+                const cust = (enq.customerId?.name || '').toLowerCase();
+                if (!mat.includes(searchTerm) && !brand.includes(searchTerm) &&
+                    !spec.includes(searchTerm) && !enqNum.includes(searchTerm) &&
+                    !cust.includes(searchTerm)) continue;
+            }
+            entries.push({ item, enquiry: enq });
+        }
+    }
+
+    const groups = groupByMaterial(entries);
+
+    if (groups.length === 0) {
+        container.innerHTML = `<div class="card text-center" style="padding:2rem">
+            <i class="ph ph-cube" style="font-size:2rem;color:var(--text-muted);display:block;margin-bottom:0.75rem;opacity:0.4"></i>
+            <h3 class="mb-2">No Materials Found</h3>
+            <p class="text-muted">Try adjusting your filters or search term.</p>
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = groups.map((group, idx) => {
+        const prod = group.product;
+        const name = prod?.materialName || 'Unknown Material';
+        const uom  = prod?.uom || '';
+        const meta = [prod?.brand, prod?.specification].filter(Boolean).join(' · ');
+        const id   = `mat-${idx}`;
+
+        // Pipeline chips aggregated across all entries for this material
+        const counts = {
+            unassigned: group.entries.filter(e => ['unassigned','pending'].includes(e.item.status)).length,
+            assigned:   group.entries.filter(e => e.item.status === 'assigned').length,
+            query:      group.entries.filter(e => ['in_sales_query','sales_query_resolved'].includes(e.item.status)).length,
+            quoted:     group.entries.filter(e => e.item.status === 'vendor_quoted').length,
+            priced:     group.entries.filter(e => ['priced','sales_priced'].includes(e.item.status)).length,
+            done:       group.entries.filter(e => ['completed','unsuccessful'].includes(e.item.status)).length,
+        };
+        const hasAlert = group.entries.some(e => e.item.status === 'in_sales_query');
+
+        const chips = [
+            counts.unassigned ? `<span class="enq-chip chip-unassigned"><span class="enq-chip-count">${counts.unassigned}</span> Unassigned</span>` : '',
+            counts.assigned   ? `<span class="enq-chip chip-assigned"><span class="enq-chip-count">${counts.assigned}</span> Assigned</span>` : '',
+            counts.query      ? `<span class="enq-chip chip-query${hasAlert ? ' chip-alert' : ''}"><i class="ph ph-warning-circle"></i><span class="enq-chip-count">${counts.query}</span> ${hasAlert ? 'Needs Response' : 'Query'}</span>` : '',
+            counts.quoted     ? `<span class="enq-chip chip-quoted"><span class="enq-chip-count">${counts.quoted}</span> Quoted</span>` : '',
+            counts.priced     ? `<span class="enq-chip chip-priced"><span class="enq-chip-count">${counts.priced}</span> Priced</span>` : '',
+            counts.done       ? `<span class="enq-chip chip-done"><span class="enq-chip-count">${counts.done}</span> Done</span>` : '',
+        ].filter(Boolean).join('');
+
+        const cardBorder = counts.done === group.entries.length
+            ? 'border-left:4px solid #10b981'
+            : hasAlert ? 'border-left:4px solid #f59e0b'
+            : counts.unassigned > 0 ? 'border-left:4px solid #a78bfa' : '';
+
+        // Auto-expand cards that need immediate action
+        const autoOpen = (counts.unassigned > 0 || hasAlert) ? ' open' : '';
+
+        // Header-level assign button: find first enquiry with unassigned items in this group
+        const firstUnassignedEntry = group.entries.find(e => ['unassigned','pending'].includes(e.item.status));
+        const headerAssignBtn = counts.unassigned > 0 && hasPermission('enquiry.assign') && firstUnassignedEntry ? `
+            <button class="btn btn-primary btn-sm" style="flex-shrink:0"
+              onclick="event.stopPropagation(); showAssignModal('${firstUnassignedEntry.enquiry._id}')"
+              title="Assign unassigned items to sourcing">
+              <i class="ph ph-user-plus"></i> Assign${counts.unassigned > 1 ? ' (' + counts.unassigned + ')' : ''}
+            </button>` : '';
+
+        const rows = group.entries.map(({ item, enquiry }) => {
+            const isQuery   = item.status === 'in_sales_query';
+            const isReady   = ['priced','sales_priced','completed'].includes(item.status);
+            const isSelected = selectedForQuote[enquiry._id]?.has(item._id);
+            const rowBg     = isQuery ? 'background:rgba(245,158,11,0.04);' : '';
+            const rowBorder = isQuery ? 'border-left:3px solid #f59e0b;' : '';
+
+            const assignBtn = ['unassigned','pending'].includes(item.status) && hasPermission('enquiry.assign') ? `
+                <button class="btn btn-primary btn-sm" onclick="showAssignModal('${enquiry._id}', false, '${item._id}')" title="Assign to sourcing">
+                  <i class="ph ph-user-plus"></i> Assign
+                </button>` : '';
+
+            const chatBtn = `<button class="btn btn-secondary btn-sm" onclick="openChat('${enquiry._id}','${enquiry.enquiryNumber}')" title="Open chat">
+                <i class="ph ph-chat-text"></i>
+              </button>`;
+
+            return `<tr style="${rowBg}${rowBorder}">
+              <td>
+                <span class="enq-ref">${enquiry.enquiryNumber}</span>
+                ${item.combinedFromEnquiry?.enquiryNumber ? `<br><span class="combined-from-badge"><i class="ph ph-link"></i> from ${item.combinedFromEnquiry.enquiryNumber}</span>` : ''}
+              </td>
+              <td style="font-size:0.82rem">${enquiry.customerId?.name || '—'}</td>
+              <td>${item.quantity} <span style="color:var(--text-muted);font-size:0.78rem">${uom}</span></td>
+              <td>
+                ${item.assignedTo
+                  ? `<span class="badge badge-info" style="font-weight:500">${item.assignedTo.name}</span>`
+                  : `<span style="color:var(--text-muted);font-size:0.8rem">Unassigned</span>`}
+              </td>
+              <td>
+                ${['vendor_quoted','priced','sales_priced','completed'].includes(item.status) ? `
+                  <button class="btn btn-secondary btn-sm" onclick="viewItemQuotes('${item._id}')">
+                    <i class="ph ph-list-checks"></i> View
+                  </button>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
+              </td>
+              <td>${item.salesPrice ? formatCurrency(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
+              <td>
+                ${getStatusBadge(item.status)}
+                ${isQuery ? `<div style="font-size:0.68rem;color:#92400e;background:#fef3c7;padding:0.1rem 0.35rem;border-radius:0.2rem;font-weight:600;margin-top:0.2rem;display:inline-flex;align-items:center;gap:0.2rem"><i class="ph ph-warning-circle"></i> Response needed</div>` : ''}
+              </td>
+              <td>
+                <div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center">
+                  ${assignBtn}
+                  ${renderActionButtons(enquiry, item)}
+                  ${chatBtn}
+                </div>
+              </td>
+            </tr>`;
+        }).join('');
+
+        return `<div class="material-card${autoOpen}" id="${id}" style="${cardBorder}">
+            <div class="material-card-header" onclick="toggleMaterialCard('${id}')">
+                <div class="material-icon"><i class="ph ph-cube"></i></div>
+                <div style="flex:1;min-width:0">
+                    <div class="material-name">${name}</div>
+                    ${meta ? `<div class="material-meta-text">${meta}</div>` : ''}
+                </div>
+                <div class="enq-pipeline" style="flex:0 1 auto;justify-content:flex-end">
+                    ${chips}
+                </div>
+                <div class="material-stats" style="flex-shrink:0">
+                    <span class="material-stat-chip"><i class="ph ph-stack" style="font-size:0.7rem"></i> ${group.entries.length} enq</span>
+                    <span class="material-stat-chip"><i class="ph ph-scales" style="font-size:0.7rem"></i> ${group.totalQty} ${uom}</span>
+                </div>
+                ${headerAssignBtn}
+                <i class="ph ph-caret-down material-chevron"></i>
+            </div>
+            <div class="material-enquiries">
+                <div class="glass-table-wrap" style="margin:0;border-radius:0;border:none">
+                  <table class="glass-table" style="border-radius:0">
+                    <thead><tr>
+                      <th>Enquiry #</th><th>Customer</th><th>Qty</th>
+                      <th>Assigned To</th><th>Vendor Quote</th><th>Sales Price</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderItemsView() {
+    const container = document.getElementById('enquiriesList');
+    const searchTerm = (document.getElementById('searchEnquiries')?.value || '').toLowerCase();
+
+    // Sort order for status — action-needed statuses first
+    const statusOrder = ['in_sales_query','unassigned','pending','assigned','sales_query_resolved','vendor_quoted','priced','sales_priced','completed','unsuccessful'];
+
+    const allEntries = [];
+    for (const enq of enquiries) {
+        for (const item of (enq.items || [])) {
+            if (!itemMatchesStatusFilter(item)) continue;
+            if (searchTerm) {
+                const mat   = (item.productId?.materialName || '').toLowerCase();
+                const brand = (item.productId?.brand || '').toLowerCase();
+                const spec  = (item.productId?.specification || '').toLowerCase();
+                const enqN  = (enq.enquiryNumber || '').toLowerCase();
+                const cust  = (enq.customerId?.name || '').toLowerCase();
+                if (!mat.includes(searchTerm) && !brand.includes(searchTerm) &&
+                    !spec.includes(searchTerm) && !enqN.includes(searchTerm) &&
+                    !cust.includes(searchTerm)) continue;
+            }
+            allEntries.push({ item, enquiry: enq });
+        }
+    }
+
+    // Sort: needs-response first, then unassigned, then by status order
+    allEntries.sort((a, b) => {
+        const ai = statusOrder.indexOf(a.item.status);
+        const bi = statusOrder.indexOf(b.item.status);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    if (allEntries.length === 0) {
+        container.innerHTML = `<div class="glass-table-wrap"><div style="padding:3rem;text-align:center;color:var(--text-muted)">
+            <i class="ph ph-rows" style="font-size:2rem;display:block;margin-bottom:0.5rem;opacity:0.4"></i>
+            No items match the current filters.</div></div>`;
+        return;
+    }
+
+    // Summary counts across all visible items
+    const summary = {
+        unassigned: allEntries.filter(e => ['unassigned','pending'].includes(e.item.status)).length,
+        query:      allEntries.filter(e => e.item.status === 'in_sales_query').length,
+        assigned:   allEntries.filter(e => e.item.status === 'assigned').length,
+        quoted:     allEntries.filter(e => e.item.status === 'vendor_quoted').length,
+        priced:     allEntries.filter(e => ['priced','sales_priced'].includes(e.item.status)).length,
+        done:       allEntries.filter(e => ['completed','unsuccessful'].includes(e.item.status)).length,
+    };
+
+    const summaryChips = [
+        summary.query      ? `<span class="enq-chip chip-query chip-alert"><i class="ph ph-warning-circle"></i> ${summary.query} Needs Response</span>` : '',
+        summary.unassigned ? `<span class="enq-chip chip-unassigned">${summary.unassigned} Unassigned</span>` : '',
+        summary.assigned   ? `<span class="enq-chip chip-assigned">${summary.assigned} Assigned</span>` : '',
+        summary.quoted     ? `<span class="enq-chip chip-quoted">${summary.quoted} Quoted</span>` : '',
+        summary.priced     ? `<span class="enq-chip chip-priced">${summary.priced} Priced</span>` : '',
+        summary.done       ? `<span class="enq-chip chip-done">${summary.done} Done</span>` : '',
+    ].filter(Boolean).join('');
+
+    const rows = allEntries.map(({ item, enquiry }) => {
+        const prod     = item.productId;
+        const uom      = prod?.uom || '';
+        const isQuery  = item.status === 'in_sales_query';
+        const rowBg    = isQuery ? 'background:rgba(245,158,11,0.035);' : '';
+        const rowBorder = isQuery ? 'border-left:3px solid #f59e0b;' : '';
+
+        const assignBtn = ['unassigned','pending'].includes(item.status) && hasPermission('enquiry.assign') ? `
+            <button class="btn btn-primary btn-sm" onclick="showAssignModal('${enquiry._id}', false, '${item._id}')" title="Assign">
+              <i class="ph ph-user-plus"></i> Assign
+            </button>` : '';
+
+        const chatBtn = `<button class="btn btn-secondary btn-sm" onclick="openChat('${enquiry._id}','${enquiry.enquiryNumber}')" title="Open chat">
+            <i class="ph ph-chat-text"></i>
+          </button>`;
+
+        return `<tr style="${rowBg}${rowBorder}">
+          <td>
+            <div class="mat-primary">${prod?.materialName || '—'}</div>
+            ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+            ${item.combinedFromEnquiry?.enquiryNumber ? `<span class="combined-from-badge"><i class="ph ph-link"></i> from ${item.combinedFromEnquiry.enquiryNumber}</span>` : ''}
+            ${isQuery ? `<div style="font-size:0.68rem;color:#92400e;background:#fef3c7;padding:0.1rem 0.35rem;border-radius:0.2rem;font-weight:600;margin-top:0.25rem;display:inline-flex;align-items:center;gap:0.2rem"><i class="ph ph-warning-circle"></i> Sales response needed</div>` : ''}
+          </td>
+          <td><span class="enq-ref">${enquiry.enquiryNumber}</span></td>
+          <td style="font-size:0.82rem">${enquiry.customerId?.name || '—'}</td>
+          <td style="white-space:nowrap">${item.quantity} <span style="color:var(--text-muted);font-size:0.78rem">${uom}</span></td>
+          <td>
+            ${item.assignedTo
+              ? `<span class="badge badge-info" style="font-weight:500">${item.assignedTo.name}</span>`
+              : `<span style="color:var(--text-muted);font-size:0.8rem">Unassigned</span>`}
+          </td>
+          <td>
+            ${['vendor_quoted','priced','sales_priced','completed'].includes(item.status) ? `
+              <button class="btn btn-secondary btn-sm" onclick="viewItemQuotes('${item._id}')">
+                <i class="ph ph-list-checks"></i> View
+              </button>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
+          </td>
+          <td>${item.salesPrice ? formatCurrency(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
+          <td>${getStatusBadge(item.status)}</td>
+          <td>
+            <div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center">
+              ${assignBtn}
+              ${renderActionButtons(enquiry, item)}
+              ${chatBtn}
+            </div>
+          </td>
+        </tr>`;
+    });
+
+    const metaHtml = `<span style="font-size:0.82rem;color:var(--text-secondary)"><strong>${allEntries.length}</strong> item${allEntries.length !== 1 ? 's' : ''}</span>
+        <div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">${summaryChips}</div>`;
+
+    const ths = ['Material','Enquiry #','Customer','Qty','Assigned To','Vendor Quote','Sales Price','Status','Actions'].map(h => `<th>${h}</th>`).join('');
+    container.innerHTML = `<div class="glass-table-wrap">
+        <div class="glass-table-meta" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">${metaHtml}</div>
+        <div style="overflow-x:auto">
+          <table class="glass-table">
+            <thead><tr>${ths}</tr></thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
+        </div>
+    </div>`;
 }
 
 // Search functionality
@@ -175,16 +496,22 @@ function matchesFilter(enquiry) {
                 (enquiry.items && enquiry.items.some(i => i.status === 'unsuccessful'));
         }
         if (filter === 'pending') {
-            return enquiry.items && enquiry.items.some(i => ['pending', 'assigned'].includes(i.status));
+            return enquiry.items && enquiry.items.some(i => ['unassigned', 'pending', 'assigned', 'in_sales_query', 'sales_query_resolved'].includes(i.status));
+        }
+        if (filter === 'needs_response') {
+            return enquiry.items && enquiry.items.some(i => i.status === 'in_sales_query');
         }
         if (filter === 'quoted') {
-            return enquiry.items && enquiry.items.some(i => ['vendor_quoted', 'sales_priced'].includes(i.status));
+            return enquiry.items && enquiry.items.some(i => ['vendor_quoted', 'priced', 'sales_priced'].includes(i.status));
         }
         return false;
     });
 }
 
 function renderEnquiries(filteredEnquiries = null) {
+    if (viewMode === 'material') { renderMaterialView(); return; }
+    if (viewMode === 'items')    { renderItemsView();    return; }
+
     const container = document.getElementById('enquiriesList');
     let enquiriesToRender = filteredEnquiries || enquiries;
 
@@ -235,7 +562,7 @@ function renderEnquiries(filteredEnquiries = null) {
           <div class="toggle-icon" id="icon-${enquiry._id}">▼</div>
         </div>
       </div>
-      
+
       <div class="enquiry-items" id="items-${enquiry._id}">
         ${renderEnquiryActions(enquiry)}
         ${renderItems(enquiry)}
@@ -247,26 +574,48 @@ function renderEnquiries(filteredEnquiries = null) {
 
 function renderEnquiryActions(enquiry) {
     const allItemsPriced = enquiry.items && enquiry.items.length > 0 &&
-        enquiry.items.every(item => item.salesPrice && item.salesPrice > 0);
+        enquiry.items.every(item => ['priced', 'sales_priced', 'completed', 'unsuccessful'].includes(item.status) && (item.salesPrice > 0 || item.status === 'unsuccessful'));
 
-    const isClosed = enquiry.items && enquiry.items.every(item => item.status === 'completed' || item.status === 'unsuccessful');
+    const isClosed = ['completed', 'unsuccessful', 'closed'].includes(enquiry.status);
+    const hasUnassigned = enquiry.items && enquiry.items.some(i => ['unassigned', 'pending'].includes(i.status));
+    const hasInQuery = enquiry.items && enquiry.items.some(i => i.status === 'in_sales_query');
 
     return `
-      <div class="item-card" style="background: rgba(79, 70, 229, 0.05); display: flex; justify-content: space-between; align-items: center;">
-        <div class="flex gap-2">
-          ${!enquiry.assignedTo ? `
+      <div class="item-card" style="background: rgba(79, 70, 229, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div class="flex gap-2" style="flex-wrap:wrap">
+          ${hasUnassigned && hasPermission('enquiry.assign') ? `
             <button class="btn btn-primary btn-sm" onclick="showAssignModal('${enquiry._id}')">
               <i class="ph ph-user-plus"></i> Assign to Sourcing
             </button>
           ` : ''}
-          ${!isClosed ? `
+          ${hasInQuery ? `
+            <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.78rem;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:0.4rem;padding:0.25rem 0.6rem;font-weight:600">
+              <i class="ph ph-warning-circle"></i> Query needs response
+            </span>
+          ` : ''}
+          ${!isClosed && hasPermission('enquiry.mark_unsuccessful') ? `
             <button class="btn btn-unsuccessful btn-sm" onclick="closeEnquiryUnsuccessful('${enquiry._id}')" title="Close Enquiry Unsuccessful">
               <i class="ph ph-x-circle"></i> Close Unsuccessful
             </button>
           ` : ''}
-          <button class="btn btn-danger btn-sm" onclick="deleteEnquiry('${enquiry._id}')" title="Delete Enquiry">
-            <i class="ph ph-trash"></i>
-          </button>
+          ${isClosed && hasPermission('enquiry.reopen') ? `
+            <button class="btn btn-secondary btn-sm" onclick="reopenEnquiry('${enquiry._id}')">
+              <i class="ph ph-arrow-counter-clockwise"></i> Reopen
+            </button>
+          ` : ''}
+          ${enquiry.closeReason ? `
+            <span style="font-size:0.75rem;color:var(--text-muted);align-self:center"><i class="ph ph-info"></i> Closed: ${enquiry.closeReason}</span>
+          ` : ''}
+          ${!isClosed && hasPermission('enquiry.combine') && enquiry.items?.length > 0 ? `
+            <button class="btn btn-secondary btn-sm" onclick="showCombineModalForItem('${enquiry._id}', null)" title="Combine items into another enquiry">
+              <i class="ph ph-link"></i> Combine
+            </button>
+          ` : ''}
+          ${!isClosed ? `
+            <button class="btn btn-danger btn-sm" onclick="deleteEnquiry('${enquiry._id}')" title="Delete Enquiry">
+              <i class="ph ph-trash"></i>
+            </button>
+          ` : ''}
         </div>
         <div>
             <button class="btn btn-secondary btn-sm" onclick="openChat('${enquiry._id}', '${enquiry.enquiryNumber}')" style="margin-right: 0.5rem;">
@@ -305,89 +654,87 @@ function renderQuotationButton(enquiry, allItemsPriced) {
 
 function renderItems(enquiry) {
     if (!enquiry.items || enquiry.items.length === 0) {
-        return '<div class="p-3 text-muted" style="padding: 1rem;">No items in this enquiry</div>';
+        return '<div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.875rem"><i class="ph ph-package" style="font-size:1.5rem;display:block;margin-bottom:0.4rem;opacity:0.4"></i>No items in this enquiry</div>';
     }
 
+    const rows = enquiry.items.map((item, index) => {
+        const isReady = ['priced', 'sales_priced', 'completed'].includes(item.status);
+        const isSelected = selectedForQuote[enquiry._id]?.has(item._id);
+        const isQuery = item.status === 'in_sales_query';
+        const rowBg = isQuery ? 'background:rgba(245,158,11,0.04);' : '';
+        const rowBorder = isQuery ? 'border-left:3px solid #f59e0b;' : '';
+
+        const assignBtn = ['unassigned', 'pending'].includes(item.status) && hasPermission('enquiry.assign') ? `
+          <button class="btn btn-primary btn-sm" onclick="showAssignModal('${enquiry._id}', false, '${item._id}')" title="Assign this item">
+            <i class="ph ph-user-plus"></i> Assign
+          </button>` : '';
+
+        return `
+        <tr style="${rowBg}${rowBorder}">
+          <td style="width:40px;padding-left:1rem">
+            ${isReady ? `
+              <label class="premium-checkbox-container" style="gap:0">
+                <input type="checkbox"
+                  class="quote-item-checkbox-${enquiry._id}"
+                  value="${item._id}"
+                  ${isSelected ? 'checked' : ''}
+                  onchange="toggleItemQuoteSelection('${enquiry._id}', '${item._id}')">
+                <span class="premium-checkbox"></span>
+              </label>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
+          </td>
+          <td>
+            <div class="mat-primary">${item.productId.materialName}</div>
+            <div class="mat-meta">${[item.productId.brand, item.productId.specification].filter(Boolean).join(' · ')}</div>
+            <div class="enq-ref">#${enquiry.enquiryNumber}.${index + 1}</div>
+            ${item.combinedFromEnquiry?.enquiryNumber ? `<span class="combined-from-badge"><i class="ph ph-link"></i> from ${item.combinedFromEnquiry.enquiryNumber}</span>` : ''}
+            ${isQuery ? `<span style="font-size:0.7rem;color:#92400e;background:#fef3c7;padding:0.1rem 0.4rem;border-radius:0.25rem;font-weight:600;display:inline-flex;align-items:center;gap:0.2rem;margin-top:0.2rem"><i class="ph ph-warning-circle"></i> Sales response needed</span>` : ''}
+          </td>
+          <td>
+            ${item.assignedTo
+              ? `<span class="badge badge-info" style="font-weight:500">${item.assignedTo.name}</span>`
+              : `<span style="color:var(--text-muted);font-size:0.8rem">Unassigned</span>`}
+          </td>
+          <td>${item.quantity} <span style="color:var(--text-muted);font-size:0.78rem">${item.productId.uom}</span></td>
+          <td>
+            ${['vendor_quoted', 'priced', 'sales_priced', 'completed'].includes(item.status) ? `
+              <button class="btn btn-secondary btn-sm" onclick="viewItemQuotes('${item._id}')">
+                <i class="ph ph-list-checks"></i> View
+              </button>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
+          </td>
+          <td>${item.salesPrice ? formatCurrency(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
+          <td>${getStatusBadge(item.status)}</td>
+          <td>
+            <div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center">
+              ${assignBtn}
+              ${renderActionButtons(enquiry, item)}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
     return `
-    <div class="table-responsive" style="padding: 0 1rem 1rem 1rem;">
-      <table class="table">
+    <div class="glass-table-wrap" style="margin:0;border-radius:0;border:none;background:rgba(248,250,252,0.7)">
+      <table class="glass-table" style="border-radius:0">
         <thead>
           <tr>
-            <th style="width: 40px;">
-                <label class="premium-checkbox-container" style="gap: 0;">
-                    <input type="checkbox" onchange="toggleSelectAllQuote('${enquiry._id}', this)" title="Select All Ready Items">
-                    <span class="premium-checkbox"></span>
-                </label>
+            <th style="width:40px">
+              <label class="premium-checkbox-container" style="gap:0">
+                <input type="checkbox" onchange="toggleSelectAllQuote('${enquiry._id}', this)" title="Select All Ready Items">
+                <span class="premium-checkbox"></span>
+              </label>
             </th>
             <th>Material</th>
-            <th style="width: 15%;">Assigned To</th>
-            <th>Quantity</th>
+            <th>Assigned To</th>
+            <th>Qty</th>
             <th>Vendor Quote</th>
             <th>Sales Price</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="items-table-body-${enquiry._id}">
-          ${enquiry.items.map((item, index) => {
-        const isReady = item.status === 'sales_priced' || item.status === 'completed';
-        const isSelected = selectedForQuote[enquiry._id]?.has(item._id);
-        const rowClass = item.status === 'completed' ? 'row-completed' : (item.status === 'unsuccessful' ? 'row-unsuccessful' : '');
-
-        return `
-            <tr class="${rowClass}" style="position: relative;">
-              <td data-label="">
-                ${isReady ? `
-                <label class="premium-checkbox-container" style="gap: 0;">
-                    <input type="checkbox" 
-                        class="quote-item-checkbox-${enquiry._id}" 
-                        value="${item._id}" 
-                        ${isSelected ? 'checked' : ''}
-                        onchange="toggleItemQuoteSelection('${enquiry._id}', '${item._id}')">
-                    <span class="premium-checkbox"></span>
-                </label>
-                ` : '<span class="text-muted">-</span>'}
-              </td>
-              <td data-label="Material" style="position: relative;">
-                <div style="font-weight: 500;">${item.productId.materialName}</div>
-                <div class="text-muted" style="font-size: 0.85rem;">
-                  ${item.productId.brand || ''} ${item.productId.specification ? '• ' + item.productId.specification : ''}
-                </div>
-                <div style="margin-top: 4px; font-size: 0.75rem; color: var(--primary); font-family: 'JetBrains Mono', monospace; background: var(--bg-hover); display: inline-block; padding: 2px 6px; border-radius: 4px;">
-                    #${enquiry.enquiryNumber}.${index + 1}
-                </div>
-                ${item.status === 'completed' ? '<div class="item-completed-tag" style="right: auto; left: 100%; margin-left: 1rem;">COMPLETED</div>' : ''}
-                ${item.status === 'unsuccessful' ? '<div class="item-unsuccessful-tag" style="right: auto; left: 100%; margin-left: 1rem;">UNSUCCESSFUL</div>' : ''}
-              </td>
-              <td data-label="Assigned To">
-                ${item.assignedTo ?
-                `<div class="badge badge-info" style="font-weight: 500;">${item.assignedTo.name}</div>` :
-                '<span class="text-muted">-</span>'}
-              </td>
-              <td data-label="Quantity">${item.quantity} ${item.productId.uom}</td>
-              <td data-label="Vendor Quote">
-                ${item.status === 'vendor_quoted' || item.status === 'sales_priced' || item.status === 'completed' ? `
-                  <button class="btn btn-secondary btn-sm" onclick="viewItemQuotes('${item._id}')">
-                    <i class="ph ph-list-checks"></i> View Quotes
-                  </button>
-                ` : `
-                  <span class="text-muted">-</span>
-                `}
-              </td>
-              <td data-label="Sales Price">${item.salesPrice ? formatCurrency(item.salesPrice) : '-'}</td>
-              <td data-label="Status">${getStatusBadge(item.status)}</td>
-              <td data-label="Actions">
-                <div class="flex gap-2 flex-wrap">
-                  ${renderActionButtons(enquiry, item)}
-                </div>
-              </td>
-            </tr>
-            `;
-    }).join('')}
-        </tbody>
+        <tbody id="items-table-body-${enquiry._id}">${rows}</tbody>
       </table>
-    </div>
-  `;
+    </div>`;
 }
 
 function renderActionButtons(enquiry, item) {
@@ -395,13 +742,11 @@ function renderActionButtons(enquiry, item) {
 
     if (item.status !== 'completed' && item.status !== 'unsuccessful') {
         buttons += `
-          <button class="btn btn-secondary btn-sm" onclick="showCombineModalForItem('${enquiry._id}', '${item._id}')" title="Combine">
-            <i class="ph ph-link"></i>
-          </button>
+          ${hasPermission('enquiry.combine') ? `<button class="btn btn-secondary btn-sm" onclick="showCombineModalForItem('${enquiry._id}', '${item._id}')" title="Combine into another enquiry"><i class="ph ph-link"></i></button>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="showEditItemModal('${enquiry._id}', '${item._id}')" title="Edit">
             <i class="ph ph-pencil-simple"></i>
           </button>
-          <button class="btn btn-unsuccessful btn-sm" onclick="markUnsuccessful('${enquiry._id}', '${item._id}')" title="Mark Unsuccessful">
+          <button class="btn btn-unsuccessful btn-sm" onclick="openItemCloseModal('${enquiry._id}', '${item._id}')" title="Mark Unsuccessful">
             <i class="ph ph-x-circle"></i>
           </button>
           <button class="btn btn-danger btn-sm" onclick="deleteItem('${enquiry._id}', '${item._id}')" title="Delete">
@@ -410,25 +755,25 @@ function renderActionButtons(enquiry, item) {
         `;
     }
 
-    if ((item.status === 'vendor_quoted' || item.status === 'sales_priced') && item.status !== 'completed' && item.status !== 'unsuccessful') {
+    if (item.status === 'vendor_quoted') {
         buttons += `
-          <button class="btn btn-success btn-sm" onclick="showSalesPriceModal('${enquiry._id}', '${item._id}')" title="Enter Sales Price">
-            <i class="ph ph-currency-dollar"></i> Price
+          <button class="btn btn-success btn-sm" onclick="showSalesPriceModal('${enquiry._id}', '${item._id}')" title="Set Sales Price">
+            <i class="ph ph-currency-dollar"></i> Set Price
           </button>
         `;
     }
 
-    if (item.status === 'sales_priced') {
+    if (item.status === 'priced' || item.status === 'sales_priced') {
         buttons += `
-          <button class="btn btn-primary btn-sm" onclick="markComplete('${enquiry._id}', '${item._id}')" title="Mark Complete">
-            <i class="ph ph-check-circle"></i> Complete
+          <button class="btn btn-primary btn-sm" onclick="markComplete('${enquiry._id}', '${item._id}')" title="Mark Successful">
+            <i class="ph ph-check-circle"></i> Mark Successful
           </button>
         `;
     }
 
-    if (item.status === 'completed' || item.status === 'sales_priced') {
+    if (['completed', 'priced', 'sales_priced'].includes(item.status)) {
         buttons += `
-          <button class="btn btn-sm" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border);" 
+          <button class="btn btn-sm" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border);"
             onclick="downloadEnquiryQuotation('${enquiry._id}', false, ['${item._id}'])" title="Download Single Quote">
             <i class="ph ph-file-pdf"></i>
           </button>
@@ -442,8 +787,6 @@ function toggleEnquiry(enquiryId) {
     const itemsDiv = document.getElementById(`items-${enquiryId}`);
     const icon = document.getElementById(`icon-${enquiryId}`);
 
-    const isExpanding = !itemsDiv.classList.contains('expanded');
-
     if (itemsDiv.classList.contains('expanded')) {
         itemsDiv.classList.remove('expanded');
         icon.classList.remove('expanded');
@@ -451,6 +794,12 @@ function toggleEnquiry(enquiryId) {
         itemsDiv.classList.add('expanded');
         icon.classList.add('expanded');
     }
+}
+
+function refreshEnquiryCard(enquiry) {
+    const itemsDiv = document.getElementById(`items-${enquiry._id}`);
+    if (!itemsDiv) return;
+    itemsDiv.innerHTML = renderEnquiryActions(enquiry) + renderItems(enquiry);
 }
 
 // New Enquiry Modal
@@ -541,6 +890,71 @@ function showAddProductModal(suggestedName = '') {
 
 function closeAddProductModal() {
     document.getElementById('addProductModal').classList.remove('active');
+}
+
+// ── Inline Customer Creation ──────────────────────────────────────────────────
+
+async function showAddCustomerModal() {
+    ['newCustomerName', 'newCustomerContact', 'newCustomerPhone', 'newCustomerEmail', 'newCustomerAddress']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const kamSelect = document.getElementById('newCustomerKAM');
+    if (kamSelect) kamSelect.value = '';
+    document.getElementById('addCustomerModal').classList.add('active');
+    setTimeout(() => document.getElementById('newCustomerName')?.focus(), 100);
+    await loadKAMOptions();
+}
+
+async function loadKAMOptions() {
+    const kamSelect = document.getElementById('newCustomerKAM');
+    const hint = document.getElementById('kamLoadingHint');
+    if (!kamSelect) return;
+    hint?.style && (hint.style.display = '');
+    try {
+        const kamUsers = await apiCall('/users/by-category?category=key_accounts');
+        kamSelect.innerHTML = '<option value="">— No KAM assigned —</option>' +
+            kamUsers.map(u => `<option value="${u._id}">${u.name}</option>`).join('');
+    } catch (_) {
+        kamSelect.innerHTML = '<option value="">— No KAM assigned —</option>';
+    } finally {
+        if (hint) hint.style.display = 'none';
+    }
+}
+
+function closeAddCustomerModal() {
+    document.getElementById('addCustomerModal').classList.remove('active');
+}
+
+async function handleCustomerCreation() {
+    const name = document.getElementById('newCustomerName').value.trim();
+    if (!name) { showToast('Customer name is required', 'error'); return; }
+
+    const btn = document.querySelector('#addCustomerModal .btn-primary');
+    const origText = btn?.innerHTML;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Creating...'; }
+
+    try {
+        const kamId = document.getElementById('newCustomerKAM')?.value || '';
+        const customer = await apiCall('/customers', {
+            method: 'POST',
+            body: JSON.stringify({
+                name,
+                contactPerson: document.getElementById('newCustomerContact').value.trim() || undefined,
+                phone: document.getElementById('newCustomerPhone').value.trim() || undefined,
+                email: document.getElementById('newCustomerEmail').value.trim() || undefined,
+                address: document.getElementById('newCustomerAddress').value.trim() || undefined,
+                assignedKAM: kamId || undefined,
+            })
+        });
+        customers.push(customer);
+        populateCustomerSelect();
+        document.getElementById('customerSelect').value = customer._id;
+        closeAddCustomerModal();
+        showToast(`"${name}" created and selected`, 'success');
+    } catch (error) {
+        showToast(error.message || 'Failed to create customer', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+    }
 }
 
 async function handleProductCreation() {
@@ -652,10 +1066,13 @@ async function createEnquiry() {
         enquiries.unshift(enquiry);
         closeNewEnquiryModal();
         renderEnquiries();
-        showToast('Enquiry created successfully!');
 
-        // Show assignment popup
-        showAssignModal(enquiry._id, true);
+        if (hasPermission('enquiry.assign')) {
+            showToast('Enquiry created! Assign to sourcing below.', 'success');
+            showAssignModal(enquiry._id, true);
+        } else {
+            showToast('Enquiry created! Managers and sourcing team have been notified.', 'success');
+        }
     } catch (error) {
         console.error('Create enquiry error:', error);
         showToast('Failed to create enquiry', 'error');
@@ -663,7 +1080,7 @@ async function createEnquiry() {
 }
 
 // Assign Modal
-function showAssignModal(enquiryId, isNew = false) {
+function showAssignModal(enquiryId, isNew = false, preSelectItemId = null) {
     currentEnquiryId = enquiryId;
     const enquiry = enquiries.find(e => e._id === enquiryId);
 
@@ -676,7 +1093,7 @@ function showAssignModal(enquiryId, isNew = false) {
             container.innerHTML = enquiry.items.map(item => {
                 const isAssigned = !!item.assignedTo;
                 const isDisabled = isAssigned;
-                const isChecked = !isAssigned;
+                const isChecked = preSelectItemId ? item._id === preSelectItemId : !isAssigned;
 
                 return `
                 <label class="assign-item-card ${isDisabled ? 'disabled' : ''} ${isChecked ? 'selected' : ''}" onclick="this.classList.toggle('selected', !this.querySelector('input').checked)">
@@ -831,33 +1248,30 @@ function showCombineModalForItem(enquiryId, itemId) {
     select.innerHTML = '<option value="">Select enquiry...</option>' +
         ongoingEnquiries.map(e => `<option value="${e._id}">${e.enquiryNumber} - ${e.customerId?.name}</option>`).join('');
 
-    // Show item to combine (just this one)
-    const item = enquiry.items.find(i => i._id === itemId);
+    // Show ALL items from the source enquiry (not just the clicked one)
+    const items = enquiry.items || [];
     const itemsList = document.getElementById('combineItemsList');
     itemsList.innerHTML = `
-    <div class="card" style="padding: 1.5rem; border: 1px solid var(--border); box-shadow: none;">
-      <h4 class="mb-3" style="color: var(--text-primary); font-size: 1.1rem;"><i class="ph ph-package"></i> Item to Combine</h4>
-            <div class="form-check" style="
-                padding: 1rem; 
-                border: 1px solid var(--border); 
-                border-radius: 0.75rem; 
-                margin: 0; 
-                display: flex; 
-                align-items: center; 
-                gap: 1rem; 
-                background: var(--bg-card);
-                box-shadow: var(--shadow-sm);
-            ">
-                <input class="form-check-input" type="checkbox" value="${item._id}" id="combine_item_${item._id}" checked 
-                    style="width: 1.5rem; height: 1.5rem; margin: 0; accent-color: var(--success); cursor: not-allowed;" disabled>
-                <label class="form-check-label" for="combine_item_${item._id}" style="flex: 1; cursor: default;">
-                    <div style="font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem; color: var(--text-primary);">${item.productId?.materialName}</div>
-                    <div class="text-muted" style="font-size: 0.9rem;">
-                        ${item.quantity} ${item.productId?.uom}
-                         ${item.productId?.brand ? '• ' + item.productId.brand : ''}
-                    </div>
-                </label>
+    <div class="card" style="padding:1.25rem;border:1px solid var(--border);box-shadow:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h4 style="color:var(--text-primary);font-size:1rem;margin:0"><i class="ph ph-package"></i> Items from ${enquiry.enquiryNumber}</h4>
+        <span style="font-size:0.8rem;color:var(--text-muted)">All items will be moved to the target enquiry</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem">
+        ${items.map(item => `
+          <label style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:0.6rem;background:var(--bg-card);cursor:pointer">
+            <input type="checkbox" value="${item._id}" checked
+              style="width:1.25rem;height:1.25rem;margin:0;accent-color:var(--primary);flex-shrink:0">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:0.95rem;color:var(--text-primary)">${item.productId?.materialName || '—'}</div>
+              <div style="font-size:0.82rem;color:var(--text-muted);margin-top:0.15rem">
+                ${item.quantity} ${item.productId?.uom || ''}${item.productId?.brand ? ' · ' + item.productId.brand : ''}
+              </div>
             </div>
+            <span style="font-size:0.75rem;flex-shrink:0">${getStatusBadge(item.status)}</span>
+          </label>
+        `).join('')}
+      </div>
     </div>
   `;
 
@@ -931,8 +1345,8 @@ async function combineEnquiries() {
         });
 
         showToast('Enquiries combined successfully!');
-        await loadData();
         closeCombineModal();
+        await loadData();
     } catch (error) {
         console.error('Combine error:', error);
         showToast('Failed to combine enquiries', 'error');
@@ -1138,35 +1552,64 @@ async function markComplete(enquiryId, itemId) {
     }
 }
 
-async function markUnsuccessful(enquiryId, itemId) {
-    if (!confirm('Mark this item as unsuccessfully closed?')) return;
+// Close reason modal state
+let _closeTarget = null; // { enquiryId, itemId? }
+
+function openItemCloseModal(enquiryId, itemId) {
+    _closeTarget = { enquiryId, itemId, type: 'item' };
+    _openCloseModal('Mark Item Unsuccessful', 'Why is this item being marked unsuccessful?');
+}
+
+function closeEnquiryUnsuccessful(enquiryId) {
+    _closeTarget = { enquiryId, type: 'enquiry' };
+    _openCloseModal('Close Enquiry', 'Why is this enquiry being closed as unsuccessful?');
+}
+
+function _openCloseModal(title, placeholder) {
+    document.getElementById('closeReasonModalTitle').textContent = title;
+    document.getElementById('closeReasonInput').value = '';
+    document.getElementById('closeReasonInput').placeholder = placeholder || 'e.g. Customer cancelled, no suitable vendor...';
+    document.getElementById('closeReasonError').style.display = 'none';
+    document.getElementById('closeReasonModal').classList.add('active');
+}
+
+async function confirmCloseWithReason() {
+    const reason = document.getElementById('closeReasonInput').value.trim();
+    if (!reason) {
+        document.getElementById('closeReasonError').style.display = '';
+        return;
+    }
 
     try {
-        await apiCall(`/enquiries/${enquiryId}/items/${itemId}/unsuccessful`, {
-            method: 'PUT'
-        });
-
-        showToast('Item marked as unsuccessful', 'warning');
+        if (_closeTarget.type === 'enquiry') {
+            await apiCall(`/enquiries/${_closeTarget.enquiryId}/unsuccessful`, {
+                method: 'PUT',
+                body: JSON.stringify({ closeReason: reason })
+            });
+            showToast('Enquiry closed', 'warning');
+        } else {
+            await apiCall(`/enquiries/${_closeTarget.enquiryId}/items/${_closeTarget.itemId}/unsuccessful`, {
+                method: 'PUT',
+                body: JSON.stringify({ closeReason: reason })
+            });
+            showToast('Item marked unsuccessful', 'warning');
+        }
+        document.getElementById('closeReasonModal').classList.remove('active');
+        _closeTarget = null;
         await loadData();
     } catch (error) {
-        console.error('Mark unsuccessful error:', error);
-        showToast('Failed to update status', 'error');
+        showToast(error.message || 'Failed to close', 'error');
     }
 }
 
-async function closeEnquiryUnsuccessful(enquiryId) {
-    if (!confirm('Are you sure you want to close this ENTIRE enquiry as unsuccessful? All pending items will be marked as unsuccessful.')) return;
-
+async function reopenEnquiry(enquiryId) {
+    if (!confirm('Reopen this enquiry? Unsuccessful items will move back to Unassigned.')) return;
     try {
-        await apiCall(`/enquiries/${enquiryId}/unsuccessful`, {
-            method: 'PUT'
-        });
-
-        showToast('Enquiry closed unsuccessfully', 'warning');
+        await apiCall(`/enquiries/${enquiryId}/reopen`, { method: 'PUT' });
+        showToast('Enquiry reopened', 'success');
         await loadData();
     } catch (error) {
-        console.error('Close enquiry error:', error);
-        showToast('Failed to close enquiry', 'error');
+        showToast(error.message || 'Failed to reopen', 'error');
     }
 }
 
@@ -1407,10 +1850,7 @@ function toggleItemQuoteSelection(enquiryId, itemId) {
 
     // Refresh UI to update button count
     const enquiry = enquiries.find(e => e._id === enquiryId);
-    if (enquiry) {
-        document.getElementById(`items-${enquiryId}`).innerHTML =
-            renderEnquiryActions(enquiry) + renderItems(enquiry);
-    }
+    if (enquiry) refreshEnquiryCard(enquiry);
 }
 
 function toggleSelectAllQuote(enquiryId, checkbox) {
@@ -1425,7 +1865,7 @@ function toggleSelectAllQuote(enquiryId, checkbox) {
     if (checkbox.checked) {
         // Select all ready items
         enquiry.items.forEach(item => {
-            if (item.status === 'sales_priced' || item.status === 'completed') {
+            if (['priced', 'sales_priced', 'completed'].includes(item.status)) {
                 set.add(item._id);
             }
         });
@@ -1435,8 +1875,7 @@ function toggleSelectAllQuote(enquiryId, checkbox) {
     }
 
     // Refresh UI
-    document.getElementById(`items-${enquiryId}`).innerHTML =
-        renderEnquiryActions(enquiry) + renderItems(enquiry);
+    if (enquiry) refreshEnquiryCard(enquiry);
 }
 
 // Updated Quotation Logic
@@ -1460,7 +1899,7 @@ function downloadEnquiryQuotation(enquiryId, isPartial = false, specificItemIds 
         itemsToProcess = enquiry.items.filter(i => selectedIds.has(i._id));
     } else {
         // Fallback: All ready items (legacy behavior but stricter)
-        itemsToProcess = enquiry.items.filter(i => i.status === 'sales_priced' || i.status === 'completed');
+        itemsToProcess = enquiry.items.filter(i => ['priced', 'sales_priced', 'completed'].includes(i.status));
     }
 
     if (itemsToProcess.length === 0) {

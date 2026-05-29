@@ -1,12 +1,136 @@
 /**
- * layout.js - Handles common layout enhancements like the glass header
- * and personalized greetings.
+ * layout.js - Shared layout functions: sidebar, greeting, header scroll.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
     updateGreeting();
     setupHeaderScroll();
+    initSidebar();
 });
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
+function _setNavDisplay(el, visible) {
+    if (!el) return;
+    if (visible) {
+        el.style.display = 'flex';
+        el.style.flexDirection = 'column';
+        el.style.gap = '0.5rem';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+}
+
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    if (localStorage.getItem('sidebarCollapsed') === 'true') {
+        sidebar.classList.add('collapsed');
+    }
+
+    const user = getUser();
+    if (!user) return;
+
+    const nameEl = document.getElementById('navUserName');
+    if (nameEl) nameEl.textContent = user.name || 'User';
+    const roleEl = document.getElementById('navUserRole');
+    if (roleEl) roleEl.textContent = user.roleName || user.role || '';
+
+    const isAdmin = typeof hasPermission === 'function' && hasPermission('dashboard.admin');
+
+    const adminNav = document.getElementById('adminNav');
+    const roleNav  = document.getElementById('roleNav');
+
+    if (adminNav && roleNav) {
+        // ── Dual-nav pages (sales, sourcing, key-accounts, masters) ─
+        if (isAdmin) {
+            _setNavDisplay(adminNav, true);
+            _setNavDisplay(roleNav, false);
+            // Set active link for current page
+            adminNav.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
+            const path   = window.location.pathname;
+            const search = window.location.search;
+            if (path === '/sales.html')         adminNav.querySelector('#adminNavSalesLink')?.classList.add('active');
+            else if (path === '/sourcing.html')     adminNav.querySelector('#adminNavSourcingLink')?.classList.add('active');
+            else if (path === '/key-accounts.html') adminNav.querySelector('#adminNavKamLink')?.classList.add('active');
+            else if (path === '/masters.html') {
+                const type = new URLSearchParams(search).get('type');
+                if (type) adminNav.querySelector(`#adminNavMaster_${type}`)?.classList.add('active');
+            }
+        } else {
+            // Non-admin: hide sidebar entirely, expand content, show compact top bar
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            if (sidebar) sidebar.style.display = 'none';
+            if (mainContent) { mainContent.style.marginLeft = '0'; mainContent.style.width = '100%'; }
+
+            const topNav = document.getElementById('roleTopNav');
+            if (topNav) {
+                topNav.style.display = 'flex';
+                const tnName = document.getElementById('topNavUserName');
+                const tnRole = document.getElementById('topNavUserRole');
+                if (tnName) tnName.textContent = user.name || '';
+                if (tnRole) tnRole.textContent = user.roleName || user.role || '';
+            }
+        }
+        return;
+    }
+
+    // ── Legacy single-nav fallback ───────────────────────────────────
+    const setVisible = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? 'flex' : 'none'; };
+    const setBlock   = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? 'block' : 'none'; };
+    setVisible('sidebarAdminLink', isAdmin);
+    setBlock('sidebarAdminDivider', isAdmin);
+    const canSales    = hasAnyPermission(['enquiry.create', 'enquiry.view.own', 'sales_price.add', 'sales_price.approve', 'enquiry.assign', 'enquiry.combine', 'enquiry.bulk_create', 'enquiry.mark_unsuccessful', 'quotation.send', 'quotation.download']);
+    const canSourcing = hasAnyPermission(['purchase_price.add', 'enquiry.view.assigned']);
+    const canKam      = hasPermission('enquiry.view.assigned_customers');
+    setVisible('sidebarSalesLink', canSales);
+    setVisible('sidebarSourcingLink', canSourcing);
+    setVisible('sidebarKamLink', canKam);
+    setBlock('sidebarPipelineSection', canSales || canSourcing || canKam);
+    const canMaterials = hasPermission('material.view');
+    const canCustomers = hasPermission('customer.view');
+    const canVendors   = hasPermission('vendor.view');
+    const canEmployees = hasPermission('user.view');
+    setVisible('sidebarMaterialsLink', canMaterials);
+    setVisible('sidebarCustomersLink', canCustomers);
+    setVisible('sidebarVendorsLink', canVendors);
+    setVisible('sidebarEmployeesLink', canEmployees);
+    setBlock('sidebarMasterSection', canMaterials || canCustomers || canVendors || canEmployees);
+}
+
+function _applyRoleNav() {
+    const setVisible = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? 'flex' : 'none'; };
+    const setBlock   = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? 'block' : 'none'; };
+
+    // Strict page-specific conditions — enquiry.view.all does NOT grant sidebar links
+    const canSales    = hasAnyPermission(['enquiry.create', 'enquiry.view.own', 'sales_price.add', 'sales_price.approve', 'enquiry.assign', 'enquiry.combine', 'enquiry.bulk_create', 'enquiry.mark_unsuccessful', 'quotation.send', 'quotation.download']);
+    const canSourcing = hasAnyPermission(['purchase_price.add', 'enquiry.view.assigned']);
+    const canKam      = hasPermission('enquiry.view.assigned_customers');
+
+    setVisible('sidebarSalesLink', canSales);
+    setVisible('sidebarSourcingLink', canSourcing);
+    setVisible('sidebarKamLink', canKam);
+    setBlock('sidebarPipelineSection', canSales || canSourcing || canKam);
+
+    const canMaterials = hasPermission('material.view');
+    const canCustomers = hasPermission('customer.view');
+    const canVendors   = hasPermission('vendor.view');
+    const canEmployees = hasPermission('user.view');
+    setVisible('sidebarMaterialsLink', canMaterials);
+    setVisible('sidebarCustomersLink', canCustomers);
+    setVisible('sidebarVendorsLink', canVendors);
+    setVisible('sidebarEmployeesLink', canEmployees);
+    setBlock('sidebarMasterSection', canMaterials || canCustomers || canVendors || canEmployees);
+}
 
 function updateGreeting() {
     const user = getUser();

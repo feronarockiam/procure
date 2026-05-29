@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Enquiry, EnquiryItem, Product, Customer, User } = require('../db');
+const { authenticateToken, requirePermission } = require('../middleware/auth');
 
 /**
  * Bulk Enquiry Routes
@@ -50,7 +51,7 @@ function levenshteinDistance(str1, str2) {
  * POST /api/enquiries/bulk/validate
  * Validate bulk enquiry data with product matching
  */
-router.post('/bulk/validate', async (req, res) => {
+router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk_create'), async (req, res) => {
     try {
         const { rows } = req.body;
 
@@ -213,7 +214,7 @@ router.post('/bulk/validate', async (req, res) => {
  * POST /api/enquiries/bulk/create
  * Create multiple enquiries from validated data
  */
-router.post('/bulk/create', async (req, res) => {
+router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_create'), async (req, res) => {
     try {
         const { enquiries, userId } = req.body;
 

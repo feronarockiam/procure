@@ -49,6 +49,26 @@
                     <i class="ph ph-storefront"></i>
                     <span>Vendors</span>
                 </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;" class="menu-label">Enquiry Management</div>
+                <a href="/sales.html" class="nav-item">
+                    <i class="ph ph-shopping-cart-simple"></i>
+                    <span>Sales &amp; Enquiries</span>
+                </a>
+                <a href="/sourcing.html" class="nav-item">
+                    <i class="ph ph-package"></i>
+                    <span>Sourcing / Purchase</span>
+                </a>
+                <a href="/key-accounts.html" class="nav-item">
+                    <i class="ph ph-handshake"></i>
+                    <span>Key Accounts</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;" class="menu-label">Access Control</div>
+                <a href="/role-management.html" class="nav-item">
+                    <i class="ph ph-shield-check"></i>
+                    <span>Role Management</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -58,9 +78,8 @@
                         <i class="ph ph-user"></i>
                     </div>
                     <div class="user-info" style="flex: 1; overflow: hidden;">
-                        <div style="font-weight: 600; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                            id="navUserName">Admin</div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Administrator</div>
+                        <div style="font-weight: 600; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="navUserName">Admin</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);" id="navUserRole"></div>
                     </div>
                     <button onclick="logout()" class="toggle-btn" title="Logout">
                         <i class="ph ph-sign-out"></i>
@@ -81,6 +100,9 @@
                         <span class="text-muted" style="font-size: 0.875rem;">
                             <i class="ph ph-calendar-blank"></i> Today
                         </span>
+                        <a href="/sales.html" class="btn btn-primary" style="text-decoration:none">
+                            <i class="ph ph-plus"></i> New Enquiry
+                        </a>
                     </div>
                 </div>
             </div>
@@ -165,11 +187,11 @@
 
             <!-- Recent Enquiries Table -->
             <div class="card" style="padding: 1.5rem;">
-                <div class="flex-between mb-3">
+                <div class="flex-between mb-3" style="flex-wrap:wrap;gap:0.75rem">
                     <h3 class="mb-0"><i class="ph ph-table"></i> Recent Enquiries</h3>
-                    <div class="flex gap-2">
-                        <input type="text" id="enquirySearch" placeholder="Search enquiries..."
-                            style="padding: 0.5rem; font-size: 0.875rem; width: 250px;" onkeyup="filterEnquiries()">
+                    <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
+                        <input type="text" id="enquirySearch" placeholder="Search enquiries or materials..."
+                            style="padding: 0.5rem; font-size: 0.875rem; width: 220px;" onkeyup="filterEnquiries()">
                         <select id="statusFilter" style="padding: 0.5rem; font-size: 0.875rem;"
                             onchange="filterEnquiries()">
                             <option value="all">All Status</option>
@@ -178,11 +200,12 @@
                             <option value="sales_priced">Priced</option>
                             <option value="completed">Completed</option>
                         </select>
+                        <div id="viewToggleContainer"></div>
                     </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table" id="enquiriesTable">
-                        <thead>
+                        <thead id="enquiriesTableHeadEnquiry">
                             <tr>
                                 <th>Enquiry #</th>
                                 <th>Customer</th>
@@ -190,6 +213,29 @@
                                 <th>Date</th>
                                 <th>Status</th>
                                 <th>Queries</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <thead id="enquiriesTableHeadMaterial" style="display:none">
+                            <tr>
+                                <th>Material</th>
+                                <th>Customers</th>
+                                <th></th>
+                                <th>Enquiries</th>
+                                <th>Total Qty</th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <thead id="enquiriesTableHeadItems" style="display:none">
+                            <tr>
+                                <th>Material</th>
+                                <th>Enquiry #</th>
+                                <th>Customer</th>
+                                <th>Qty</th>
+                                <th>Assigned To</th>
+                                <th>Status</th>
+                                <th>Date</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -240,31 +286,9 @@
     </div>
 
     <script src="/js/auth.js"></script>
+    <script src="/js/layout.js"></script>
     <script src="/js/notifications.js"></script>
     <script src="/js/admin.js"></script>
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-
-            // Save state
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-        }
-
-        // Restore state
-        document.addEventListener('DOMContentLoaded', () => {
-            const sidebar = document.getElementById('sidebar');
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-            }
-
-            const user = getUser();
-            if (user) {
-                document.getElementById('navUserName').textContent = user.name;
-            }
-        });
-    </script>
     <script src="/js/doodle-bg.js"></script>
 </body>
 

@@ -6,14 +6,15 @@ const connectDB = async () => {
 
     if (!process.env.MONGODB_URI) {
         console.error('❌ MONGODB_URI is not defined in environment variables');
-        return;
+        throw new Error('MONGODB_URI environment variable is required');
     }
 
     try {
         const conn = await mongoose.connect(process.env.MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 5000
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 30000,
+            maxPoolSize: 10,
+            minPoolSize: 2,
         });
         console.log(`✅ MongoDB connected: ${conn.connection.host}`);
         return conn;
@@ -24,11 +25,25 @@ const connectDB = async () => {
 };
 
 // Mongoose Schemas
+const roleSchema = new mongoose.Schema({
+    name: { type: String, required: true, unique: true },
+    description: { type: String },
+    permissions: [{ type: String }],
+    category: { type: String, enum: ['admin', 'sales', 'purchase', 'key_accounts'], required: true },
+    dashboardPage: { type: String, required: true },
+    color: { type: String, default: '#3B9FD9' },
+    isSystem: { type: Boolean, default: false },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
+
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'sales', 'sourcing'], required: true },
+    // Legacy field kept for backward compatibility during migration
+    role: { type: String, enum: ['admin', 'sales', 'sourcing'] },
+    roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role' },
     name: { type: String, required: true },
+    supervisorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -38,6 +53,7 @@ const customerSchema = new mongoose.Schema({
     email: { type: String },
     phone: { type: String },
     address: { type: String },
+    assignedKAM: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -47,7 +63,7 @@ const vendorSchema = new mongoose.Schema({
     email: { type: String },
     phone: { type: String },
     specialization: { type: String },
-    address: { type: String }, // Added address field
+    address: { type: String },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -55,7 +71,7 @@ const productSchema = new mongoose.Schema({
     materialName: { type: String, required: true },
     uom: { type: String, required: true },
     description: { type: String },
-    hsnCode: { type: String }, // Added HSN Code field
+    hsnCode: { type: String },
     brand: { type: String },
     specification: { type: String },
     createdAt: { type: Date, default: Date.now }
@@ -67,6 +83,10 @@ const enquirySchema = new mongoose.Schema({
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     status: { type: String, enum: ['active', 'completed', 'unsuccessful', 'closed'], default: 'active' },
+    stage: { type: String, enum: ['new', 'open', 'updated', 'completed'], default: 'new' },
+    closeReason: { type: String, default: null },
+    reopenedAt:  { type: Date, default: null },
+    reopenedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -76,12 +96,21 @@ const enquiryItemSchema = new mongoose.Schema({
     quantity: { type: Number, required: true },
     status: {
         type: String,
-        enum: ['pending', 'assigned', 'vendor_quoted', 'sales_priced', 'completed', 'unsuccessful'],
-        default: 'pending'
+        enum: [
+            'unassigned', 'assigned', 'in_sales_query', 'sales_query_resolved',
+            'vendor_quoted', 'priced', 'completed', 'unsuccessful',
+            'pending', 'sales_priced', // backward compat
+        ],
+        default: 'unassigned'
     },
     salesPrice: { type: Number },
     selectedVendorQuoteId: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorQuotation' },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+    combinedFromEnquiry: {
+        enquiryId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Enquiry', default: null },
+        enquiryNumber: { type: String, default: null }
+    },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
@@ -115,6 +144,7 @@ const querySchema = new mongoose.Schema({
 });
 
 // Models
+const Role = mongoose.model('Role', roleSchema);
 const User = mongoose.model('User', userSchema);
 const Customer = mongoose.model('Customer', customerSchema);
 const Vendor = mongoose.model('Vendor', vendorSchema);
@@ -127,6 +157,7 @@ const Query = mongoose.model('Query', querySchema);
 
 module.exports = {
     connectDB,
+    Role,
     User,
     Customer,
     Vendor,

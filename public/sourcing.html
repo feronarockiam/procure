@@ -1,25 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sourcing Dashboard - Precise Procure</title>
+    <title>Sourcing / Purchase – Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
-        .dashboard {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .header {
-            margin-bottom: 2rem;
-        }
-
         .selection-bar {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -31,11 +20,7 @@
             justify-content: space-between;
             align-items: center;
         }
-
-        .enquiry-group {
-            margin-bottom: 1.5rem;
-        }
-
+        .enquiry-group { margin-bottom: 1.5rem; }
         .enquiry-title {
             background: var(--bg-tertiary);
             padding: 1rem;
@@ -43,7 +28,6 @@
             margin-bottom: 0.75rem;
             font-weight: 600;
         }
-
         .item-card {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -53,178 +37,296 @@
             margin-bottom: 0.75rem;
             transition: all var(--transition-base);
         }
+        .item-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+        .item-card.selected { border-color: var(--primary); background: rgba(99,102,241,0.1); box-shadow: var(--shadow-glow); }
+        .item-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem; }
+        .item-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; }
+        .detail-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; display: block; }
+        .detail-value { font-weight: 500; font-size: 1rem; }
+        .vendor-quote { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 0.375rem; padding: 0.75rem; margin-top: 0.75rem; }
+        .vendor-quote-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-weight: 600; }
+        .sourcing-tab-btn { background: transparent; color: var(--text-secondary); }
+        .sourcing-tab-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .sourcing-tab-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 
-        .item-card:hover {
-            border-color: var(--primary);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .item-card.selected {
-            border-color: var(--primary);
-            background: rgba(99, 102, 241, 0.1);
-            box-shadow: var(--shadow-glow);
-        }
-
-        .item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
+        /* ── Enquiry Accordion Cards ─────────────────────────────────── */
+        .enquiry-accordion-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 0.75rem;
             margin-bottom: 0.75rem;
+            overflow: hidden;
+            transition: box-shadow 0.15s;
         }
-
-        .item-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        .enquiry-accordion-card:hover { box-shadow: var(--shadow-lg); }
+        .enquiry-accordion-card.is-waiting { border-left: 3px solid #f59e0b; }
+        .enquiry-accordion-header {
+            display: flex;
+            align-items: center;
             gap: 0.75rem;
-            margin-bottom: 0.75rem;
+            padding: 0.85rem 1.1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .enquiry-accordion-header:hover { background: rgba(0,0,0,0.02); }
+        .enquiry-accordion-body {
+            padding: 0 1.1rem 1rem;
+            border-top: 1px solid var(--border);
+        }
+        .enq-number {
+            font-family: monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            white-space: nowrap;
         }
 
-        .detail-label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
+        /* ── Standalone items table (inside accordion cards) ─────────── */
+        .items-table { width: 100%; border-collapse: collapse; }
+        .items-table thead th {
+            background: var(--bg-secondary);
+            font-size: 0.72rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.25rem;
-            display: block;
-        }
-
-        .detail-value {
-            font-weight: 500;
-            font-size: 1rem;
-        }
-
-        .vendor-quote {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            border-radius: 0.375rem;
-            padding: 0.75rem;
-            margin-top: 0.75rem;
-        }
-
-        .vendor-quote-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            padding: 0.45rem 0.75rem;
+            text-align: left;
             font-weight: 600;
+        }
+        .items-table tbody td {
+            padding: 0.55rem 0.75rem;
+            font-size: 0.83rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .items-table tbody tr:last-child td { border-bottom: none; }
+
+        /* ── Team member cards ───────────────────────────────────────── */
+        .team-member-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+        }
+        .team-member-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.9rem 1.1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .team-member-header:hover { background: rgba(0,0,0,0.02); }
+        .team-member-body {
+            padding: 0.75rem 1.1rem 1rem;
+            border-top: 1px solid var(--border);
+        }
+        .member-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .member-stats { display: flex; gap: 0.4rem; flex-shrink: 0; }
+        .stat-chip {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+        .enquiry-progress-bar {
+            height: 5px;
+            background: var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .enquiry-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.4s ease;
         }
     </style>
 </head>
-
 <body>
-    <!-- Mobile Navigation Drawer -->
-    <div id="mobileNavOverlay" class="mobile-nav-overlay" onclick="toggleMobileMenu()"></div>
-    <div id="mobileNavDrawer" class="mobile-nav-drawer">
-        <div class="mobile-nav-header">
-            <div class="brand-logo">
-                <i class="ph-bold ph-lightning" style="color: var(--primary);"></i> Precise Procure
-            </div>
-            <button class="mobile-nav-close" onclick="toggleMobileMenu()">
-                <i class="ph ph-x"></i>
-            </button>
-        </div>
-        <div class="mobile-nav-items">
-            <a href="/sales.html" class="mobile-nav-item">
-                <i class="ph ph-shopping-cart"></i>
-                Sales Dashboard
-            </a>
-            <a href="/sourcing.html" class="mobile-nav-item">
-                <i class="ph ph-package"></i>
-                Sourcing
-            </a>
-            <a href="/masters.html" class="mobile-nav-item">
-                <i class="ph ph-database"></i>
-                Masters
-            </a>
-            <a href="#" class="mobile-nav-item" onclick="logout()">
-                <i class="ph ph-sign-out"></i>
-                Logout
-            </a>
-        </div>
-    </div>
+<div class="app-container">
 
-    <div class="dashboard">
-        <div class="glass-header">
-            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
-                <i class="ph ph-list"></i>
-            </button>
-            <div class="brand-logo">
-                <i class="ph-bold ph-lightning" style="color: var(--primary);"></i> Precise Procure
+    <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="flex items-center gap-2 logo-text">
+                <i class="ph ph-gauge" style="font-size:1.5rem;color:var(--primary)"></i>
+                <span>Precise Procure</span>
             </div>
-            <div class="header-actions">
-                <div class="notification-wrapper">
-                    <button class="btn-icon" onclick="toggleNotifications()">
-                        <i class="ph ph-bell" style="font-size: 1.5rem;"></i>
-                        <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
-                    </button>
-                    <div id="notificationDropdown" class="notification-dropdown" style="display: none;">
-                        <div class="notification-header flex-between">
-                            <span>Notifications</span>
-                            <button class="text-xs btn-link" onclick="markAllRead()">Mark all read</button>
-                        </div>
-                        <div id="notificationList" class="notification-list">
-                            <div class="spinner"></div>
+            <button class="toggle-btn" onclick="toggleSidebar()"><i class="ph ph-list"></i></button>
+        </div>
+        <nav class="sidebar-nav">
+            <!-- Admin Nav (identical to admin.html sidebar) -->
+            <div id="adminNav" style="display:none">
+                <a href="/admin.html" class="nav-item">
+                    <i class="ph ph-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Master Data</div>
+                <a href="/masters.html?type=materials" class="nav-item" id="adminNavMaster_materials">
+                    <i class="ph ph-package"></i>
+                    <span>Materials</span>
+                </a>
+                <a href="/masters.html?type=employees" class="nav-item" id="adminNavMaster_employees">
+                    <i class="ph ph-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="/masters.html?type=customers" class="nav-item" id="adminNavMaster_customers">
+                    <i class="ph ph-user-circle"></i>
+                    <span>Customers</span>
+                </a>
+                <a href="/masters.html?type=vendors" class="nav-item" id="adminNavMaster_vendors">
+                    <i class="ph ph-storefront"></i>
+                    <span>Vendors</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Enquiry Management</div>
+                <a href="/sales.html" class="nav-item" id="adminNavSalesLink">
+                    <i class="ph ph-shopping-cart-simple"></i>
+                    <span>Sales &amp; Enquiries</span>
+                </a>
+                <a href="/sourcing.html" class="nav-item" id="adminNavSourcingLink">
+                    <i class="ph ph-package"></i>
+                    <span>Sourcing / Purchase</span>
+                </a>
+                <a href="/key-accounts.html" class="nav-item" id="adminNavKamLink">
+                    <i class="ph ph-handshake"></i>
+                    <span>Key Accounts</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
+                <a href="/role-management.html" class="nav-item">
+                    <i class="ph ph-shield-check"></i>
+                    <span>Role Management</span>
+                </a>
+            </div>
+
+            <!-- Role Nav -->
+            <div id="roleNav" style="display:none">
+                <div id="sidebarPipelineSection">
+                    <div class="menu-label" style="padding:0 1rem;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Enquiry Pipeline</div>
+                    <a href="/sales.html" class="nav-item" id="sidebarSalesLink"><i class="ph ph-shopping-cart-simple"></i><span>Sales &amp; Enquiries</span></a>
+                    <a href="/sourcing.html" class="nav-item active" id="sidebarSourcingLink"><i class="ph ph-package"></i><span>Sourcing / Purchase</span></a>
+                    <a href="/key-accounts.html" class="nav-item" id="sidebarKamLink"><i class="ph ph-handshake"></i><span>Key Accounts</span></a>
+                </div>
+                <div id="sidebarMasterSection">
+                    <div style="height:1px;background:var(--border);margin:0.5rem 0"></div>
+                    <div class="menu-label" style="padding:0 1rem;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Master Data</div>
+                    <a href="/masters.html?type=materials" class="nav-item" id="sidebarMaterialsLink"><i class="ph ph-cube"></i><span>Materials</span></a>
+                    <a href="/masters.html?type=customers" class="nav-item" id="sidebarCustomersLink"><i class="ph ph-user-circle"></i><span>Customers</span></a>
+                    <a href="/masters.html?type=vendors" class="nav-item" id="sidebarVendorsLink"><i class="ph ph-storefront"></i><span>Vendors</span></a>
+                    <a href="/masters.html?type=employees" class="nav-item" id="sidebarEmployeesLink"><i class="ph ph-users"></i><span>Employees</span></a>
+                </div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div style="width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0">
+                    <i class="ph ph-user"></i>
+                </div>
+                <div class="user-info" style="flex:1;overflow:hidden">
+                    <div style="font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="navUserName">User</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary)" id="navUserRole"></div>
+                </div>
+                <button onclick="logout()" class="toggle-btn" title="Logout"><i class="ph ph-sign-out"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main Content ────────────────────────────────────────────── -->
+    <main class="main-content">
+
+        <!-- Compact top bar for role-based users -->
+        <header id="roleTopNav" style="display:none;justify-content:space-between;align-items:center;margin-bottom:1.75rem;padding:0.75rem 1.5rem;background:rgba(255,255,255,0.75);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,0.6);border-radius:1rem;position:sticky;top:1rem;z-index:90;box-shadow:0 4px 24px rgba(0,0,0,0.06),0 1px 4px rgba(0,0,0,0.04),inset 0 1px 0 rgba(255,255,255,0.8)">
+            <div style="display:flex;align-items:center;gap:0.6rem">
+                <i class="ph ph-gauge" style="color:var(--primary);font-size:1.2rem"></i>
+                <span style="font-weight:700;font-size:0.9rem;color:var(--text-primary)">Precise Procure</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem">
+                <div style="text-align:right">
+                    <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary)" id="topNavUserName"></div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)" id="topNavUserRole"></div>
+                </div>
+                <button onclick="logout()" class="toggle-btn" title="Logout" style="color:var(--text-secondary)">
+                    <i class="ph ph-sign-out" style="font-size:1.1rem"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Page Header -->
+        <div class="header mb-4" style="background:transparent;border:none;padding:0;box-shadow:none">
+            <div class="flex-between" style="flex-wrap:wrap;gap:1rem;align-items:flex-start">
+                <div>
+                    <h1 style="font-size:1.75rem;display:flex;align-items:center;gap:0.6rem">
+                        <i class="ph ph-package" style="color:var(--primary)"></i>
+                        Sourcing / Purchase
+                    </h1>
+                    <p class="text-muted" id="greetingSubtitle">Enter vendor quotes and manage purchase pricing.</p>
+                </div>
+                <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+                    <div class="notification-wrapper">
+                        <button class="btn-icon" onclick="toggleNotifications()">
+                            <i class="ph ph-bell" style="font-size:1.5rem"></i>
+                            <span id="notificationBadge" class="notification-badge" style="display:none">0</span>
+                        </button>
+                        <div id="notificationDropdown" class="notification-dropdown" style="display:none">
+                            <div class="notification-header flex-between">
+                                <span>Notifications</span>
+                                <button class="text-xs btn-link" onclick="markAllRead()">Mark all read</button>
+                            </div>
+                            <div id="notificationList" class="notification-list"><div class="spinner"></div></div>
                         </div>
                     </div>
                 </div>
-                <button class="btn btn-secondary" onclick="logout()" title="Logout">
-                    <i class="ph ph-sign-out"></i> Logout
-                </button>
             </div>
         </div>
 
-        <div class="welcome-section">
-            <div class="greeting-title" id="dynamicGreeting">
-                Hello, <span id="userName">User</span> 👋
-            </div>
-            <div class="greeting-subtitle" id="greetingSubtitle">
-                Ready to find the best prices today?
-            </div>
-        </div>
-
-        <!-- Premium Sourcing Insights -->
+        <!-- Insights -->
         <div class="dashboard-section-header">
             <div class="status-indicator"></div>
             <h2>Insights You Need</h2>
         </div>
-
         <div class="dashboard-grid">
             <div class="insight-card urgent">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-lightning"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-lightning"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightToQuote">0</div>
                     <div class="insight-label">Pending Pricing</div>
                     <div class="insight-subtext">Assigned items to quote</div>
                 </div>
             </div>
-
             <div class="insight-card info">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-chat-centered-dots"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-chat-centered-dots"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightQueries">0</div>
                     <div class="insight-label">Active Jobs</div>
                     <div class="insight-subtext">Assigned active enquiries</div>
                 </div>
             </div>
-
             <div class="insight-card success">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-trend-up"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-trend-up"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightCompletedToday">0</div>
                     <div class="insight-label">Completed Today</div>
                     <div class="insight-subtext">Items priced recently</div>
                 </div>
             </div>
-
             <div class="insight-card revenue">
-                <div class="insight-icon">
-                    <i class="ph-bold ph-stack"></i>
-                </div>
+                <div class="insight-icon"><i class="ph-bold ph-stack"></i></div>
                 <div class="insight-content">
                     <div class="insight-value" id="insightTotalActive">0</div>
                     <div class="insight-label">My Backlog</div>
@@ -234,175 +336,233 @@
         </div>
 
         <!-- Search & Filters -->
-        <div class="card search-filter-card">
+        <div class="card search-filter-card" id="sourcingFilterCard">
             <div class="search-row">
-                <i class="ph ph-magnifying-glass" style="color: var(--text-muted); font-size: 1.25rem;"></i>
-                <input type="text" id="searchEnquiries"
-                    placeholder="Search by enquiry number, customer name, or product..."
-                    style="flex: 1; border: none; background: transparent; outline: none; font-size: 1rem;"
+                <i class="ph ph-magnifying-glass" style="color:var(--text-muted);font-size:1.25rem"></i>
+                <input type="text" id="searchSourcing"
+                    placeholder="Search by enquiry #, customer, or material..."
+                    style="flex:1;border:none;background:transparent;outline:none;font-size:1rem"
                     oninput="handleSearch()" />
+                <button id="clearSearchBtn" onclick="clearSearch()"
+                    style="display:none;border:none;background:none;cursor:pointer;color:var(--text-muted);padding:0.2rem;line-height:1">
+                    <i class="ph ph-x-circle" style="font-size:1.15rem"></i>
+                </button>
             </div>
-
-            <div class="filter-row">
-                <span class="filter-label"><i class="ph ph-funnel-simple"></i> Status</span>
-                <div class="filter-chip" data-filter="pending" onclick="toggleFilter('pending')">
-                    Pending
+            <div class="filter-row" style="flex-wrap:wrap;gap:0.4rem">
+                <span class="filter-label"><i class="ph ph-calendar-blank"></i> Date</span>
+                <div class="filter-chip" data-filter="today" onclick="toggleFilter('today')">Today</div>
+                <div class="filter-chip" data-filter="this_week" onclick="toggleFilter('this_week')">This Week</div>
+                <div class="filter-chip" data-filter="this_month" onclick="toggleFilter('this_month')">This Month</div>
+                <div style="width:1px;height:1.2rem;background:var(--border);flex-shrink:0;margin:0 0.1rem"></div>
+                <div class="filter-chip" data-filter="urgent" onclick="toggleFilter('urgent')">
+                    <i class="ph ph-warning-circle"></i> Urgent &gt;48h
                 </div>
-                <div class="filter-chip" data-filter="quoted" onclick="toggleFilter('quoted')">
-                    Quoted
-                </div>
-                <div class="filter-chip" data-filter="successful" onclick="toggleFilter('successful')">
-                    Successful
-                </div>
-                <div class="filter-chip" data-filter="unsuccessful" onclick="toggleFilter('unsuccessful')">
-                    Unsuccessful
+                <div id="tabContextFilters" style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap"></div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;flex-shrink:0">
+                    <span id="filterResultCount" style="font-size:0.78rem;color:var(--text-muted)"></span>
+                    <button id="clearFiltersBtn" onclick="clearAllFilters()"
+                        style="display:none;border:none;background:none;cursor:pointer;font-size:0.78rem;font-weight:600;color:var(--primary);padding:0.1rem 0">
+                        <i class="ph ph-x"></i> Clear
+                    </button>
                 </div>
             </div>
         </div>
 
-
-
-        <div id="enquiriesList">
-            <div class="spinner"></div>
+        <!-- Pipeline Tabs + View Toggle -->
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <div style="display:flex;gap:0.5rem;background:var(--bg-secondary);padding:0.4rem;border-radius:0.75rem;width:fit-content">
+            <button class="sourcing-tab-btn active" data-tab="new_queue" onclick="switchTab('new_queue')"
+                style="padding:0.5rem 1.25rem;border:none;border-radius:0.5rem;font-size:0.875rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.4rem;transition:all 0.15s">
+                <i class="ph ph-inbox"></i> New Queue
+                <span id="tab-badge-new" style="background:var(--danger);color:white;border-radius:999px;font-size:0.68rem;padding:0.05rem 0.45rem;font-weight:700;min-width:16px;text-align:center"></span>
+            </button>
+            <button class="sourcing-tab-btn" data-tab="my_work" onclick="switchTab('my_work')"
+                style="padding:0.5rem 1.25rem;border:none;border-radius:0.5rem;font-size:0.875rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.4rem;transition:all 0.15s">
+                <i class="ph ph-wrench"></i> My Work
+                <span id="tab-badge-work" style="background:var(--primary);color:white;border-radius:999px;font-size:0.68rem;padding:0.05rem 0.45rem;font-weight:700;min-width:16px;text-align:center"></span>
+            </button>
+            <button class="sourcing-tab-btn" data-tab="done" onclick="switchTab('done')"
+                style="padding:0.5rem 1.25rem;border:none;border-radius:0.5rem;font-size:0.875rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.4rem;transition:all 0.15s">
+                <i class="ph ph-check-circle"></i> Done
+            </button>
+            <button id="teamTabBtn" class="sourcing-tab-btn" data-tab="team" onclick="switchTab('team')"
+                style="padding:0.5rem 1.25rem;border:none;border-radius:0.5rem;font-size:0.875rem;font-weight:600;cursor:pointer;display:none;align-items:center;gap:0.4rem;transition:all 0.15s">
+                <i class="ph ph-users-three"></i> My Team
+            </button>
         </div>
-    </div>
-
-    <!-- WhatsApp Message Modal -->
-    <div id="whatsappModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">📱 WhatsApp Message</h3>
-                <button class="close-btn" onclick="closeWhatsAppModal()">&times;</button>
-            </div>
-
-            <div class="form-group">
-                <label>Copy this message and send to vendors:</label>
-                <textarea id="whatsappMessage" rows="15" readonly
-                    style="font-family: monospace; font-size: 0.875rem;"></textarea>
-            </div>
-
-            <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+        <div id="viewToggleContainer"></div>
         </div>
-    </div>
 
-    <!-- Enter Vendor Quotation Modal -->
-    <!-- Enter Vendor Quotation Modal -->
-    <!-- Enter Vendor Quotation Modal -->
-    <div id="quotationModal" class="modal">
-        <div class="modal-content scrollable" style="max-width: 600px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-currency-inr"></i> Enter Vendor Quotation</h3>
-                <button class="close-btn" onclick="closeQuotationModal()">&times;</button>
-            </div>
+        <div id="enquiriesList"><div class="spinner"></div></div>
 
-            <div class="modal-body">
-                <div id="quotationItemInfo" class="mb-4"
-                    style="background: var(--bg-card); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
-                </div>
+    </main>
+</div>
 
-                <div class="form-group" style="margin-bottom: 2rem;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 1rem; display: block; color: var(--text-secondary); font-size: 0.95rem;">Select
-                        Vendor</label>
-                    <div class="custom-vendor-dropdown" id="customVendorDropdown">
-                        <div class="vendor-dropdown-trigger" id="vendorDropdownTrigger">
-                            <span class="placeholder">Select vendor...</span>
-                            <i class="ph ph-caret-down"></i>
-                        </div>
-                        <div class="vendor-dropdown-options" id="vendorDropdownOptions">
-                            <!-- Options will be populated dynamically -->
-                        </div>
-                    </div>
-                    <!-- Hidden input to store selected vendor ID -->
-                    <input type="hidden" id="vendorSelect" value="">
-                </div>
+<!-- ── Modals ──────────────────────────────────────────────────────────────── -->
 
-                <div class="row mb-4" style="display: flex; gap: 1rem;">
-                    <div class="form-group" style="flex: 1; margin: 0;">
-                        <label
-                            style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: var(--text-secondary); font-size: 0.9rem;">Vendor
-                            Price (₹)</label>
-                        <div style="position: relative;">
-                            <span
-                                style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);">₹</span>
-                            <input type="number" id="vendorPrice" min="0" step="0.01" placeholder="0.00"
-                                oninput="calculateQuoteTotal()"
-                                style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 1.75rem; border-radius: 0.5rem; border: 1px solid var(--border); font-weight: 600;">
-                        </div>
-                    </div>
-                    <div class="form-group" style="flex: 1; margin: 0;">
-                        <label
-                            style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: var(--text-secondary); font-size: 0.9rem;">Freight
-                            (₹)</label>
-                        <div style="position: relative;">
-                            <span
-                                style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);">₹</span>
-                            <input type="number" id="freightPrice" min="0" step="0.01" placeholder="0.00" value="0"
-                                oninput="calculateQuoteTotal()"
-                                style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 1.75rem; border-radius: 0.5rem; border: 1px solid var(--border); font-weight: 600;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Total Price Display -->
-                <div class="card"
-                    style="background: var(--primary-light); padding: 1.5rem; margin-bottom: 2rem; border-radius: 0.75rem; border: 1px solid rgba(var(--primary-rgb), 0.2);">
-                    <div class="flex-between">
-                        <span style="font-weight: 600; font-size: 1.1rem; color: var(--primary-dark);">Total
-                            Price</span>
-                        <span id="quoteTotalPrice"
-                            style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">₹0</span>
-                    </div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; text-align: right;"
-                        id="quoteTotalBreakdown">
-                        (Price × Qty) + Freight
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin: 0;">
-                    <label
-                        style="font-weight: 600; margin-bottom: 1rem; display: block; color: var(--text-secondary); font-size: 0.95rem;">Notes
-                        (Optional)</label>
-                    <textarea id="quotationNotes" rows="3" placeholder="Any additional notes..."
-                        style="width: 100%; padding: 1rem; border-radius: 0.75rem; border: 1px solid var(--border); font-family: inherit; font-size: 0.95rem; resize: vertical;"></textarea>
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeQuotationModal()"
-                    style="padding: 0.75rem 1.5rem;">Cancel</button>
-                <button class="btn btn-primary" onclick="saveVendorQuotation()"
-                    style="padding: 0.75rem 2.5rem; font-size: 1rem;">Save Quotation</button>
-            </div>
+<!-- Raise Sales Query Modal -->
+<div id="raiseQueryModal" class="modal">
+    <div class="modal-content" style="max-width:460px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-question"></i> Raise Sales Query</h3>
+            <button class="close-btn" onclick="document.getElementById('raiseQueryModal').classList.remove('active')">&times;</button>
+        </div>
+        <div style="padding:1.5rem">
+            <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:0.5rem">Enquiry: <strong id="raiseQueryEnqNo"></strong></p>
+            <label style="font-size:0.875rem;font-weight:600;display:block;margin-bottom:0.4rem">Describe your query to the sales team <span style="color:#ef4444">*</span></label>
+            <textarea id="raiseQueryInput" rows="4" style="width:100%;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.875rem;resize:vertical;background:var(--bg-secondary)" placeholder="e.g. Is there a specific brand requirement? Lead time acceptable?"></textarea>
+        </div>
+        <div class="flex gap-2" style="padding:1rem 1.5rem;border-top:1px solid var(--border);justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="document.getElementById('raiseQueryModal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmRaiseQuery()"><i class="ph ph-paper-plane-tilt"></i> Send Query</button>
         </div>
     </div>
+</div>
 
-    <!-- View Vendor Quotes Modal -->
-    <!-- View Vendor Quotes Modal -->
-    <div id="viewQuotesModal" class="modal">
-        <div class="modal-content" style="max-width: 900px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="ph ph-list-checks"></i> Vendor Quotations</h3>
-                <button class="close-btn" onclick="closeViewQuotesModal()">&times;</button>
-            </div>
+<!-- WhatsApp Message Modal -->
+<div id="whatsappModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">📱 WhatsApp Message</h3>
+            <button class="close-btn" onclick="closeWhatsAppModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>Copy this message and send to vendors:</label>
+            <textarea id="whatsappMessage" rows="15" readonly style="font-family:monospace;font-size:0.875rem"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+    </div>
+</div>
 
-            <div class="modal-body" style="padding: 2rem;">
-                <div id="quotationsList" style="min-height: 200px;"></div>
-                <div class="flex gap-2 mt-4"
-                    style="justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <button class="btn btn-secondary" onclick="closeViewQuotesModal()"
-                        style="padding: 0.75rem 2rem;">Close</button>
+<!-- Enter Vendor Quotation Modal -->
+<div id="quotationModal" class="modal">
+    <div class="modal-content scrollable" style="max-width:600px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-currency-inr"></i> Enter Vendor Quotation</h3>
+            <button class="close-btn" onclick="closeQuotationModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="quotationItemInfo" class="mb-4" style="background:var(--bg-card);padding:1.5rem;border-radius:0.75rem;border:1px solid var(--border)"></div>
+            <div class="form-group" style="margin-bottom:2rem">
+                <label style="font-weight:600;margin-bottom:1rem;display:block;color:var(--text-secondary);font-size:0.95rem">Select Vendor</label>
+                <div class="custom-vendor-dropdown" id="customVendorDropdown">
+                    <div class="vendor-dropdown-trigger" id="vendorDropdownTrigger">
+                        <span class="placeholder">Select vendor...</span>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+                    <div class="vendor-dropdown-options" id="vendorDropdownOptions"></div>
                 </div>
+                <input type="hidden" id="vendorSelect" value="">
+            </div>
+            <div class="row mb-4" style="display:flex;gap:1rem">
+                <div class="form-group" style="flex:1;margin:0">
+                    <label style="font-weight:600;margin-bottom:0.5rem;display:block;color:var(--text-secondary);font-size:0.9rem">Vendor Price (₹)</label>
+                    <div style="position:relative">
+                        <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-muted)">₹</span>
+                        <input type="number" id="vendorPrice" min="0" step="0.01" placeholder="0.00" oninput="calculateQuoteTotal()"
+                            style="width:100%;padding:0.75rem 0.75rem 0.75rem 1.75rem;border-radius:0.5rem;border:1px solid var(--border);font-weight:600">
+                    </div>
+                </div>
+                <div class="form-group" style="flex:1;margin:0">
+                    <label style="font-weight:600;margin-bottom:0.5rem;display:block;color:var(--text-secondary);font-size:0.9rem">Freight (₹)</label>
+                    <div style="position:relative">
+                        <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-muted)">₹</span>
+                        <input type="number" id="freightPrice" min="0" step="0.01" placeholder="0.00" value="0" oninput="calculateQuoteTotal()"
+                            style="width:100%;padding:0.75rem 0.75rem 0.75rem 1.75rem;border-radius:0.5rem;border:1px solid var(--border);font-weight:600">
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="background:var(--primary-light);padding:1.5rem;margin-bottom:2rem;border-radius:0.75rem;border:1px solid rgba(var(--primary-rgb),0.2)">
+                <div class="flex-between">
+                    <span style="font-weight:600;font-size:1.1rem;color:var(--primary-dark)">Total Price</span>
+                    <span id="quoteTotalPrice" style="font-size:1.5rem;font-weight:700;color:var(--primary)">₹0</span>
+                </div>
+                <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;text-align:right" id="quoteTotalBreakdown">(Price × Qty) + Freight</div>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label style="font-weight:600;margin-bottom:1rem;display:block;color:var(--text-secondary);font-size:0.95rem">Notes (Optional)</label>
+                <textarea id="quotationNotes" rows="3" placeholder="Any additional notes..."
+                    style="width:100%;padding:1rem;border-radius:0.75rem;border:1px solid var(--border);font-family:inherit;font-size:0.95rem;resize:vertical"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeQuotationModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+            <button class="btn btn-primary" onclick="saveVendorQuotation()" style="padding:0.75rem 2.5rem;font-size:1rem">Save Quotation</button>
+        </div>
+    </div>
+</div>
+
+<!-- View Vendor Quotes Modal -->
+<div id="viewQuotesModal" class="modal">
+    <div class="modal-content" style="max-width:900px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-list-checks"></i> Vendor Quotations</h3>
+            <button class="close-btn" onclick="closeViewQuotesModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:2rem">
+            <div id="quotationsList" style="min-height:200px"></div>
+            <div class="flex gap-2 mt-4" style="justify-content:flex-end;padding-top:1rem;border-top:1px solid var(--border)">
+                <button class="btn btn-secondary" onclick="closeViewQuotesModal()" style="padding:0.75rem 2rem">Close</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Edit Vendor Modal Removed -->
+<!-- Add New Vendor Modal -->
+<div id="addVendorModal" class="modal">
+    <div class="modal-content" style="max-width:520px;width:95%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="ph ph-storefront"></i> Add New Vendor</h3>
+            <button class="close-btn" onclick="closeAddVendorModal()">&times;</button>
+        </div>
+        <div style="padding:1.75rem">
+            <div class="form-group" style="margin-bottom:1.25rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Vendor / Company Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="newVendorName" placeholder="e.g. ABC Suppliers Pvt. Ltd."
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div class="form-group" style="margin-bottom:1.25rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Contact Person</label>
+                <input type="text" id="newVendorContact" placeholder="e.g. Ramesh Kumar"
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Phone</label>
+                    <input type="tel" id="newVendorPhone" placeholder="+91 98765 43210"
+                        style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Email</label>
+                    <input type="email" id="newVendorEmail" placeholder="vendor@example.com"
+                        style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:1.25rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Specialization</label>
+                <input type="text" id="newVendorSpec" placeholder="e.g. Electrical, Plumbing, Steel, Hardware"
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div class="form-group" style="margin-bottom:1.5rem">
+                <label style="font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;display:block">Address</label>
+                <input type="text" id="newVendorAddress" placeholder="City, State"
+                    style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.95rem;background:var(--bg-page)">
+            </div>
+            <div class="alert alert-info" style="margin:0"><i class="ph ph-info"></i> <span>Vendor will be created and automatically selected for this quotation.</span></div>
+        </div>
+        <div style="display:flex;gap:0.75rem;padding:0 1.75rem 1.75rem;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeAddVendorModal()" style="padding:0.75rem 1.5rem">Cancel</button>
+            <button class="btn btn-primary" onclick="handleVendorCreation()" style="padding:0.75rem 2rem">
+                <i class="ph ph-check"></i> Create &amp; Select
+            </button>
+        </div>
+    </div>
+</div>
 
-    <script src="/js/auth.js"></script>
-    <script src="/js/layout.js"></script>
-    <script src="/js/notifications.js"></script>
-    <script src="/js/sourcing.js"></script>
+<!-- ── Scripts ────────────────────────────────────────────────────────────── -->
+<script src="/js/auth.js"></script>
+<script src="/js/layout.js"></script>
+<script src="/js/notifications.js"></script>
+<script src="/js/sourcing.js"></script>
 </body>
-
 </html>

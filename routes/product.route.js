@@ -1,76 +1,56 @@
 const express = require('express');
 const { Product } = require('../db');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all products
-router.get('/', authenticateToken, async (req, res) => {
+// GET /api/products
+router.get('/', authenticateToken, requirePermission('material.view'), async (req, res) => {
     try {
         const products = await Product.find().sort({ materialName: 1 });
         res.json(products);
     } catch (error) {
-        console.error('Get products error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Create product (admin only - for later)
-router.post('/', authenticateToken, async (req, res) => {
+// POST /api/products
+router.post('/', authenticateToken, requirePermission('material.create'), async (req, res) => {
     try {
         const { materialName, uom, description, hsnCode, brand, specification } = req.body;
+        if (!materialName || !uom) return res.status(400).json({ error: 'materialName and uom are required' });
 
-        const product = new Product({
-            materialName,
-            uom,
-            description,
-            hsnCode, // Save HSN Code
-            brand,
-            specification
-        });
-
+        const product = new Product({ materialName, uom, description, hsnCode, brand, specification });
         await product.save();
         res.status(201).json(product);
     } catch (error) {
-        console.error('Create product error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Update product
-router.put('/:id', authenticateToken, async (req, res) => {
+// PUT /api/products/:id
+router.put('/:id', authenticateToken, requirePermission('material.edit'), async (req, res) => {
     try {
         const { materialName, uom, description, hsnCode, brand, specification } = req.body;
-
         const product = await Product.findByIdAndUpdate(
             req.params.id,
             { materialName, uom, description, hsnCode, brand, specification },
             { new: true, runValidators: true }
         );
-
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found' });
-        }
-
+        if (!product) return res.status(404).json({ error: 'Product not found' });
         res.json(product);
     } catch (error) {
-        console.error('Update product error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Delete product
-router.delete('/:id', authenticateToken, async (req, res) => {
+// DELETE /api/products/:id
+router.delete('/:id', authenticateToken, requirePermission('material.delete'), async (req, res) => {
     try {
         const product = await Product.findByIdAndDelete(req.params.id);
-
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found' });
-        }
-
+        if (!product) return res.status(404).json({ error: 'Product not found' });
         res.json({ message: 'Product deleted successfully' });
     } catch (error) {
-        console.error('Delete product error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });

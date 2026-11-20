@@ -172,7 +172,15 @@ function renderTopNavLinks(user) {
             #topNavLinks a { display:inline-flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; border-radius:999px;
                 font-size:0.8rem; font-weight:500; color:var(--text-secondary); text-decoration:none; border:1px solid transparent; }
             #topNavLinks a:hover { background:rgba(59,159,217,0.08); color:var(--primary); }
-            #topNavLinks a.active { background:var(--primary-light, rgba(59,159,217,0.12)); color:var(--primary); border-color:rgba(59,159,217,0.3); font-weight:600; }`;
+            #topNavLinks a.active { background:var(--primary-light, rgba(59,159,217,0.12)); color:var(--primary); border-color:rgba(59,159,217,0.3); font-weight:600; }
+            /* Phones: brand and person on one line, the screens in one row underneath that scrolls sideways */
+            @media (max-width: 900px) {
+                #roleTopNav { flex-wrap:wrap; row-gap:0.5rem; padding:0.6rem 0.9rem !important; top:0.5rem !important; }
+                #topNavLinks { order:3; width:100%; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+                #topNavLinks::-webkit-scrollbar { display:none; }
+                #topNavLinks a { white-space:nowrap; flex-shrink:0; }
+                #topNavUserRole { display:none; }
+            }`;
         document.head.appendChild(style);
     }
     const here = currentHref();

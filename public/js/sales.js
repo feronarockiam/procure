@@ -602,8 +602,6 @@ function renderEnquiriesInner(filteredEnquiries = null) {
 
         return `
     <div class="enquiry-row status-${enquiryStatus}" id="enquiry-${enquiry._id}" style="position: relative;">
-      ${enquiryStatus === 'completed' ? '<div class="item-completed-tag">COMPLETED</div>' : ''}
-      ${enquiryStatus === 'unsuccessful' ? '<div class="item-unsuccessful-tag">UNSUCCESSFUL</div>' : ''}
       <div class="enquiry-header" onclick="toggleEnquiry('${enquiry._id}')">
         <div class="enquiry-info">
           <div class="enquiry-detail">
@@ -624,6 +622,7 @@ function renderEnquiriesInner(filteredEnquiries = null) {
           </div>
         </div>
         <div class="flex gap-4" style="align-items: center;">
+          ${enquiryStatusChip(enquiry)}
           <div class="toggle-icon" id="icon-${enquiry._id}">▼</div>
         </div>
       </div>
@@ -635,6 +634,24 @@ function renderEnquiriesInner(filteredEnquiries = null) {
     </div>
         `;
     }).join('');
+}
+
+// Where an enquiry stands, in a few words, so the list says what needs doing without opening each one.
+// The most urgent state wins: a question waiting for a reply beats everything else.
+function enquiryStatusChip(enquiry) {
+    const items = enquiry.items || [];
+    const count = (...statuses) => items.filter(i => statuses.includes(i.status)).length;
+    const open = items.filter(i => !['completed', 'unsuccessful'].includes(i.status));
+    const chip = (cls, icon, text) => `<span class="enq-chip ${cls}"><i class="ph ${icon}"></i> ${text}</span>`;
+    if (items.length && count('unsuccessful') === items.length) return chip('chip-closed', 'ph-x-circle', 'Unsuccessful');
+    if (!open.length) return chip('chip-done', 'ph-check-circle', 'Completed');
+    if (count('in_sales_query')) return chip('chip-alert', 'ph-chat-circle-dots', 'Question to answer');
+    if (open.every(i => ['priced', 'sales_priced'].includes(i.status))) return chip('chip-priced', 'ph-paper-plane-tilt', 'Ready to send');
+    const quoted = count('vendor_quoted');
+    if (quoted) return chip('chip-quoted', 'ph-currency-inr', `Set selling price${open.length > 1 ? ` (${quoted} of ${open.length})` : ''}`);
+    const unassigned = count('unassigned', 'pending');
+    if (unassigned) return chip('chip-unassigned', 'ph-user-circle-dashed', unassigned === open.length ? 'Not assigned yet' : `${unassigned} not assigned`);
+    return chip('chip-assigned', 'ph-hourglass-medium', 'With purchase');
 }
 
 function renderEnquiryActions(enquiry) {
@@ -686,8 +703,8 @@ function renderEnquiryActions(enquiry) {
           ` : ''}
         </div>
         <div>
-            <button class="btn btn-secondary btn-sm" onclick="openChat('${enquiry._id}', '${enquiry.enquiryNumber}')" style="margin-right: 0.5rem;">
-                <i class="ph ph-chat-text"></i> Sales Query
+            <button class="btn ${hasInQuery ? 'btn-warning' : 'btn-secondary'} btn-sm" onclick="openChat('${enquiry._id}', '${enquiry.enquiryNumber}')" style="margin-right: 0.5rem;">
+                <i class="ph ph-chat-text"></i> ${hasInQuery ? 'Answer question' : 'Sales Query'}
             </button>
             ${renderQuotationButton(enquiry, allItemsPriced)}
         </div>
@@ -824,6 +841,15 @@ function renderActionButtons(enquiry, item) {
           ${hasAnyPermission(['enquiry.create', 'enquiry.assign']) ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('${enquiry._id}', '${item._id}')" title="Delete">
             <i class="ph ph-trash"></i>
           </button>` : ''}
+        `;
+    }
+
+    // Purchase asked a question about this item: the answer goes in the enquiry's chat
+    if (item.status === 'in_sales_query') {
+        buttons += `
+          <button class="btn btn-warning btn-sm" onclick="openChat('${enquiry._id}', '${enquiry.enquiryNumber}')" title="Purchase asked a question: read it and reply">
+            <i class="ph ph-chat-circle-dots"></i> Reply
+          </button>
         `;
     }
 
@@ -982,6 +1008,8 @@ function showAddProductModal(suggestedName = '') {
     }
 
     document.getElementById('newProductUOM').value = '';
+    document.getElementById('newProductHSN').value = '';
+    fillUomSuggestions('newProductUOMList', products);
     document.getElementById('newProductBrand').value = 'Generic';
     document.getElementById('newProductSpec').value = 'As required';
 }
@@ -1059,12 +1087,13 @@ async function handleCustomerCreation() {
 
 async function handleProductCreation() {
     const materialName = document.getElementById('newProductName').value.trim();
-    const uom = document.getElementById('newProductUOM').value;
+    const uom = document.getElementById('newProductUOM').value.trim();
+    const hsnCode = document.getElementById('newProductHSN').value.trim() || undefined;
     const brand = document.getElementById('newProductBrand').value || 'Generic';
     const specification = document.getElementById('newProductSpec').value || 'As required';
 
     if (!materialName || !uom) {
-        showToast('Please fill in material name and UOM', 'error');
+        showToast('Please fill in the material name and its unit', 'error');
         return;
     }
 
@@ -1074,7 +1103,7 @@ async function handleProductCreation() {
     try {
         const product = await apiCall('/products', {
             method: 'POST',
-            body: JSON.stringify({ materialName, uom, brand, specification })
+            body: JSON.stringify({ materialName, uom, hsnCode, brand, specification })
         });
         if (!product || !product._id) throw new Error('Server did not return the created product');
 

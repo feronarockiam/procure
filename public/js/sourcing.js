@@ -63,75 +63,31 @@ function renderInsights() {
   const currentUserId = window.currentUserId;
   if (!currentUserId) return;
 
-  let pendingPricing = 0;
-  let activeQueries = new Set(); // Enquiries with queries assigned to this user
-  let completedToday = 0;
-  let totalActive = 0;
+  // Counted over the items assigned to me, so the tiles agree with "Needs you today":
+  //   Pending Pricing  items I can quote now (a question waiting on sales is not mine to do yet)
+  //   Active Jobs      enquiries where I still have something open
+  //   Completed Today  items I entered a vendor price for today, whatever happened to them after
+  //   My Backlog       everything still on my plate, questions included
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const mine = (item) => String(item.assignedTo?._id || item.assignedTo || '') === String(currentUserId);
+  const OPEN = ['assigned', 'in_sales_query', 'sales_query_resolved'];
 
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  enquiries.forEach(enq => {
-    let enqAssignedToUser = false;
-
-    if (enq.items) {
-      enq.items.forEach(item => {
-        // Correct check for assignedTo object or ID
-        const itemAssignedToId = item.assignedTo?._id || item.assignedTo;
-
-        if (itemAssignedToId === currentUserId) {
-          enqAssignedToUser = true;
-
-          if (['assigned', 'in_sales_query', 'sales_query_resolved'].includes(item.status)) {
-            pendingPricing++;
-            totalActive++;
-          } else if (item.status === 'vendor_quoted') {
-            totalActive++;
-            const updatedAt = new Date(item.updatedAt || item.createdAt);
-            if (updatedAt >= startOfToday) {
-              completedToday++;
-            }
-          } else if (['unassigned', 'pending'].includes(item.status)) {
-            totalActive++;
-          }
-        }
-      });
-    }
-
-    // Active Queries check: if any item in enquiry is assigned to user AND enquiry has active status/queries
-    // Assuming backend returns queryCount or similar, but for now we'll check if it's 'active'
-    if (enqAssignedToUser && enq.status === 'active') {
-      // If we had a queryCount field, we'd use it. 
-      // For now, let's look for enquiries assigned to user that are still active.
-      // Actually, let's count enquiries where this user is responsible for at least one item
-      // and there are pending/assigned items (indicating work remains).
-      const hasWork = enq.items && enq.items.some(i => i.assignedTo?._id === currentUserId || i.assignedTo === currentUserId && ['assigned'].includes(i.status));
-      if (hasWork) {
-        // We'll call this "Active Enquiries" if queries are hard to track without a direct count
-        // But let's assume we want to track communication.
-      }
-    }
-  });
-
-  // Since we don't have a direct queryCount on the enquiry object in the current schema view
-  // Let's use it as "Active Assignments" for now, or total enquiries with work.
-  // Wait, I can search for total queries if they were loaded, but they aren't in loadEnquiries.
-
-  // Let's refine the 4 cards:
-  // 1. Pending Pricing (Items status 'assigned' for me)
-  // 2. Active Enquiries (Enquiries where I have items 'assigned')
-  // 3. Completed Today (Items I quoted today)
-  // 4. My Backlog (Total items assigned to me)
-
-  const activeEnquiries = enquiries.filter(enq =>
-    enq.items && enq.items.some(i => (i.assignedTo?._id === currentUserId || i.assignedTo === currentUserId) && ['assigned', 'in_sales_query', 'sales_query_resolved'].includes(i.status))
-  ).length;
+  let pendingPricing = 0, completedToday = 0, backlog = 0;
+  const activeEnquiries = new Set();
+  enquiries.forEach(enq => (enq.items || []).forEach(item => {
+    if (!mine(item)) return;
+    if (['assigned', 'sales_query_resolved'].includes(item.status)) pendingPricing++;
+    if (OPEN.includes(item.status)) { backlog++; activeEnquiries.add(enq._id); }
+    if (item.quotedAt && new Date(item.quotedAt) >= startOfToday) completedToday++;
+  }));
 
   document.getElementById('insightToQuote').textContent = pendingPricing;
-  document.getElementById('insightQueries').textContent = activeEnquiries; // Using as "Active Jobs"
+  document.getElementById('insightQueries').textContent = activeEnquiries.size;
   document.getElementById('insightCompletedToday').textContent = completedToday;
-  document.getElementById('insightTotalActive').textContent = pendingPricing + (totalActive - pendingPricing); // Total backlog
+  document.getElementById('insightTotalActive').textContent = backlog;
 }
+
 
 // ── View Mode ─────────────────────────────────────────────────────────────────
 

@@ -291,3 +291,48 @@ document.addEventListener('DOMContentLoaded', () => renderGreeting());
     });
     window.addEventListener('pageshow', stop); // coming back with the Back button shows the page from memory
 })();
+
+
+// ── Units of measure ─────────────────────────────────────────────────────────
+
+// Fill a <datalist> with the units people already use (first, so "Mtr" is picked again rather than a new "Meters"),
+// then the common ones. The box stays free text, so an unusual unit can still be typed.
+const COMMON_UOMS = ['Nos', 'Pcs', 'Set', 'Pair', 'Kg', 'Tons', 'Mtr', 'Ft', 'Ltr', 'Bags', 'Box', 'Roll', 'Coil', 'Sq.Mtr', 'Cu.Mtr', 'Lot'];
+function fillUomSuggestions(datalistId, products) {
+    const list = document.getElementById(datalistId);
+    if (!list) return;
+    const seen = new Map();
+    for (const p of products || []) {
+        const uom = (p && p.uom || '').trim();
+        if (uom) seen.set(uom.toLowerCase(), uom);
+    }
+    const inUse = [...seen.values()].sort((a, b) => a.localeCompare(b));
+    const extra = COMMON_UOMS.filter(u => !seen.has(u.toLowerCase()));
+    list.innerHTML = [...inUse, ...extra].map(u => `<option value="${escapeHtml(u)}"></option>`).join('');
+}
+
+// ── Tables on phones ─────────────────────────────────────────────────────────
+
+// On a phone each table row becomes a small card, and every value is labelled with its column heading (CSS reads it
+// from data-label). Screens draw their rows in many places, so the labels are added here, whenever rows appear.
+(function labelResponsiveTables() {
+    const label = () => {
+        document.querySelectorAll('.table-responsive table').forEach(table => {
+            const heads = [...table.querySelectorAll('thead th')].map(th => th.textContent.trim());
+            if (!heads.length) return;
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const cells = row.children;
+                if (cells.length !== heads.length) return; // "nothing found" rows span the whole table
+                for (let i = 0; i < cells.length; i++) {
+                    if (!cells[i].hasAttribute('data-label')) cells[i].setAttribute('data-label', heads[i]);
+                }
+            });
+        });
+    };
+    let queued = false;
+    const schedule = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; label(); }, 50); } };
+    document.addEventListener('DOMContentLoaded', () => {
+        label();
+        new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    });
+})();

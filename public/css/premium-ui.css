@@ -671,7 +671,7 @@ select:focus {
 }
 
 .sidebar-header {
-  padding: 1.5rem;
+  padding: 1.25rem 0.75rem 1.25rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -681,7 +681,8 @@ select:focus {
 
 .logo-text {
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: 1.05rem;
+  min-width: 0;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -1825,6 +1826,11 @@ select:focus {
 .enq-chip.chip-quoted     { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
 .enq-chip.chip-priced     { background:#eff6ff; color:#1e40af; border-color:#bfdbfe; }
 .enq-chip.chip-done       { background:#f0fdf4; color:#166534; border-color:#86efac; }
+.enq-chip.chip-closed     { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+.enquiry-header .enq-chip { white-space: nowrap; }
+/* the status + arrow area has one width on every row, so the columns line up down the list */
+.enquiry-header > .flex:last-child { min-width: 13.5rem; justify-content: flex-end; }
+@media (max-width: 768px) { .enquiry-header > .flex:last-child { min-width: 0; } }
 .enq-chip.chip-alert      { background:#fef3c7; color:#92400e; border-color:#f59e0b; animation: chipPulse 1.8s ease-in-out infinite; }
 
 @keyframes chipPulse {
@@ -3011,3 +3017,14 @@ a.stat-link:focus-visible { box-shadow: 0 0 0 3px rgba(27, 114, 179, 0.35); }
 body.is-leaving .main-content { opacity: 0.6; transition: opacity 0.2s; }
 @media (prefers-reduced-motion: reduce) { .nav-progress.running { transition: none; } body.is-leaving .main-content { transition: none; } }
 body.access-denied .main-content, body.access-denied .sidebar { visibility: hidden; }
+
+/* An action that is waiting on you (e.g. answer a question from Purchase) */
+.btn-warning {
+  background: #f59e0b;
+  color: #1f1300;
+  border: 1px solid #d97706;
+}
+.btn-warning:hover { background: #d97706; color: #fff; }
+
+/* Status badges in tables stay on one line ("Vendor Quoted" used to wrap) */
+td .badge, td .status-badge { white-space: nowrap; }

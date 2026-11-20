@@ -554,12 +554,12 @@
             </div>
             <div class="form-group mb-3">
                 <label for="newProductUOM">Unit of Measurement (UOM) *</label>
-                <select id="newProductUOM" required>
-                    <option value="">-- Select UOM --</option>
-                    <option>Pieces</option><option>Kg</option><option>Tons</option>
-                    <option>Meters</option><option>Liters</option><option>Bags</option>
-                    <option>Square Meters</option><option>Cubic Feet</option><option>Box</option>
-                </select>
+                <input type="text" id="newProductUOM" list="newProductUOMList" placeholder="Pick or type, e.g. Nos, Kg, Mtr" autocomplete="off" required>
+                <datalist id="newProductUOMList"></datalist>
+            </div>
+            <div class="form-group mb-3">
+                <label for="newProductHSN">HSN/SAC code</label>
+                <input type="text" id="newProductHSN" placeholder="Printed on the quotation (optional)" inputmode="numeric" maxlength="10">
             </div>
             <div class="form-group mb-3">
                 <label for="newProductBrand">Brand</label>

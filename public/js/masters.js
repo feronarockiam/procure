@@ -15,7 +15,7 @@ const masterConfigs = {
         apiEndpoint: '/products',
         fields: [
             { name: 'materialName', label: 'Material Name', type: 'text', required: true },
-            { name: 'uom', label: 'Unit of Measure', type: 'text', required: true },
+            { name: 'uom', label: 'Unit of Measure', type: 'text', required: true, suggest: 'uom' },
             { name: 'hsnCode', label: 'HSN/SAC Code', type: 'text', required: false },
             { name: 'brand', label: 'Brand', type: 'text', required: false },
             { name: 'specification', label: 'Specification', type: 'text', required: false },
@@ -83,10 +83,11 @@ const masterConfigs = {
             { name: 'address', label: 'Address', type: 'textarea', required: false },
             { name: 'assignedKAM', label: 'Key Account Manager', type: 'kam-select', required: false }
         ],
-        columns: ['Company Name', 'Contact Person', 'Email', 'Key Account Manager', 'Actions'],
+        columns: ['Company Name', 'Contact Person', 'Phone', 'Email', 'Key Account Manager', 'Actions'],
         renderRow: (item) => [
             escapeHtml(item.name),
             escapeHtml(item.contactPerson || '-'),
+            phoneCell(item.phone),
             escapeHtml(item.email || '-'),
             item.assignedKAM ? `<span class="badge badge-assigned">${escapeHtml(item.assignedKAM.name)}</span>` : '<span class="text-muted">Unassigned</span>'
         ]
@@ -102,15 +103,24 @@ const masterConfigs = {
             { name: 'address', label: 'Address', type: 'textarea', required: false },
             { name: 'specialization', label: 'Specialization', type: 'text', required: false }
         ],
-        columns: ['Company Name', 'Contact Person', 'Email', 'Specialization', 'Actions'],
+        columns: ['Company Name', 'Contact Person', 'Phone', 'Email', 'Specialization', 'Actions'],
         renderRow: (item) => [
             escapeHtml(item.name),
             escapeHtml(item.contactPerson || '-'),
+            phoneCell(item.phone),
             escapeHtml(item.email || '-'),
             escapeHtml(item.specialization || '-')
         ]
     }
 };
+
+// A phone number you can tap to call (on a phone) — the number is what people look for first when chasing a price
+function phoneCell(phone) {
+    const text = (phone || '').trim();
+    if (!text) return '-';
+    const dial = text.replace(/[^\d+]/g, '');
+    return dial ? `<a href="tel:${escapeHtml(dial)}" style="color:inherit;white-space:nowrap">${escapeHtml(text)}</a>` : escapeHtml(text);
+}
 
 // ── Initialize ──────────────────────────────────────────────────────────────
 
@@ -444,7 +454,7 @@ function renderFormFields(data = {}) {
         } else {
             const val = field.name === 'password' ? '' : (data[field.name] || '');
             const placeholder = field.name === 'password' && currentEditId ? 'Leave blank to keep current password' : '';
-            inputHtml = `<input type="${field.type}" id="${escapeHtml(field.name)}" value="${escapeHtml(val)}" ${field.required && !(field.name === 'password' && currentEditId) ? 'required' : ''} placeholder="${placeholder}">`;
+            inputHtml = `<input type="${field.type}" id="${escapeHtml(field.name)}" value="${escapeHtml(val)}" ${field.required && !(field.name === 'password' && currentEditId) ? 'required' : ''} placeholder="${placeholder}"${field.suggest ? ` list="${escapeHtml(field.name)}Suggestions" autocomplete="off"` : ''}>${field.suggest ? `<datalist id="${escapeHtml(field.name)}Suggestions"></datalist>` : ''}`;
         }
 
         return `
@@ -454,6 +464,9 @@ function renderFormFields(data = {}) {
             </div>
         `;
     }).join('');
+
+    // Units already in use come first, so the same unit is not typed two ways
+    if (masterType === 'materials') fillUomSuggestions('uomSuggestions', allData);
 
     // Inject contextual manager/team assignment section for employees
     if (masterType === 'employees') {

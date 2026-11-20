@@ -532,23 +532,18 @@ function showNewProductModal(enqIndex, itemIndex, suggestedName) {
             <div style="padding: 1.5rem;">
                 <div class="mb-3">
                     <label for="bulkNewProductName">Product Name *</label>
-                    <input type="text" id="bulkNewProductName" value="${suggestedName}" placeholder="Enter product name" required autofocus>
+                    <input type="text" id="bulkNewProductName" value="${escapeHtml(suggestedName)}" placeholder="Enter product name" required autofocus>
                 </div>
                 
                 <div class="mb-3">
                     <label for="bulkNewProductUOM">Unit of Measurement (UOM) *</label>
-                    <select id="bulkNewProductUOM" required>
-                        <option value="">-- Select UOM --</option>
-                        <option value="Pieces">Pieces</option>
-                        <option value="Kg">Kg</option>
-                        <option value="Tons">Tons</option>
-                        <option value="Meters">Meters</option>
-                        <option value="Liters">Liters</option>
-                        <option value="Bags">Bags</option>
-                        <option value="Square Meters">Square Meters</option>
-                        <option value="Cubic Feet">Cubic Feet</option>
-                        <option value="Box">Box</option>
-                    </select>
+                    <input type="text" id="bulkNewProductUOM" list="bulkNewProductUOMList" placeholder="Pick or type, e.g. Nos, Kg, Mtr" autocomplete="off" required>
+                    <datalist id="bulkNewProductUOMList"></datalist>
+                </div>
+
+                <div class="mb-3">
+                    <label for="bulkNewProductHSN">HSN/SAC code</label>
+                    <input type="text" id="bulkNewProductHSN" placeholder="Printed on the quotation (optional)" inputmode="numeric" maxlength="10">
                 </div>
 
                 <div class="mb-3">
@@ -577,6 +572,7 @@ function showNewProductModal(enqIndex, itemIndex, suggestedName) {
     `;
 
     document.body.appendChild(modal);
+    fillUomSuggestions('bulkNewProductUOMList', typeof products !== 'undefined' ? products : []);
 
     // Focus on product name input
     setTimeout(() => {
@@ -596,7 +592,8 @@ function closeNewProductModal() {
 // Create new product via API
 async function createNewProduct(enqIndex, itemIndex) {
     const productName = document.getElementById('bulkNewProductName').value.trim();
-    const uom = document.getElementById('bulkNewProductUOM').value;
+    const uom = document.getElementById('bulkNewProductUOM').value.trim();
+    const hsnCode = document.getElementById('bulkNewProductHSN').value.trim() || undefined;
     const brand = document.getElementById('bulkNewProductBrand').value || 'Generic';
     const specification = document.getElementById('bulkNewProductSpec').value || 'As required';
 
@@ -622,6 +619,7 @@ async function createNewProduct(enqIndex, itemIndex) {
             body: JSON.stringify({
                 materialName: productName,
                 uom: uom,
+                hsnCode,
                 brand: brand,
                 specification: specification,
                 description: `Created via bulk upload`

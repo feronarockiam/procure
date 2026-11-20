@@ -628,16 +628,23 @@ async function createNewProduct(enqIndex, itemIndex) {
             })
         });
 
-        const newProduct = await response.json();
+        const body = await response.json();
+        // Already in the master: use that one instead of failing
+        const alreadyThere = response.status === 409 && body.existing && body.existing._id;
+        const newProduct = alreadyThere ? body.existing : body;
 
-        if (response.ok) {
-            showToast('✓ Product created successfully!', 'success');
+        if (response.ok || alreadyThere) {
+            showToast(alreadyThere ? `"${newProduct.materialName}" (${newProduct.uom}) is already in the material master, so it was selected` : '✓ Product created successfully!', alreadyThere ? 'info' : 'success');
 
             // Close the modal
             closeNewProductModal();
 
             // Use the stored select element reference
-            if (currentSelectElement) {
+            const listed = currentSelectElement && Array.from(currentSelectElement.options).find(opt => opt.value === newProduct._id);
+            if (listed) {
+                listed.selected = true;
+                currentSelectElement.dispatchEvent(new Event('change'));
+            } else if (currentSelectElement) {
                 const newOption = document.createElement('option');
                 newOption.value = newProduct._id;
                 newOption.textContent = `${newProduct.materialName} (${newProduct.uom})`;

@@ -261,13 +261,22 @@ class QuotationPDFGenerator {
         doc.text('IGST18 (18%)', summaryX + 2, summaryY + 4);
         doc.text(this.fmtNum(igstTotal), summaryX + summaryW - 2, summaryY + 4, { align: 'right' });
 
+        // Round Off row: the total is in whole rupees (as the amount in words is)
+        const roundOff = Math.round(grandTotal) - grandTotal;
+        if (Math.abs(roundOff) >= 0.005) {
+            summaryY += summaryRowH;
+            doc.rect(summaryX, summaryY, summaryW, summaryRowH);
+            doc.text('Round Off', summaryX + 2, summaryY + 4);
+            doc.text(this.fmtNum(roundOff), summaryX + summaryW - 2, summaryY + 4, { align: 'right' });
+        }
+
         // Total row
         summaryY += summaryRowH;
         doc.rect(summaryX, summaryY, summaryW, summaryRowH);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.text('Total', summaryX + 2, summaryY + 4);
-        doc.text('Rs.' + this.fmtNum(grandTotal), summaryX + summaryW - 2, summaryY + 4, { align: 'right' });
+        doc.text('Rs.' + this.fmtNum(Math.round(grandTotal)), summaryX + summaryW - 2, summaryY + 4, { align: 'right' });
 
         // Company name for signature
         summaryY += summaryRowH + 3;
@@ -611,7 +620,9 @@ class QuotationPDFGenerator {
             { label: 'Sub Total', value: this.fmtNum(subTotal) },
             { label: 'Total Taxable Amount', value: this.fmtNum(subTotal) },
             { label: 'IGST18 (18%)', value: this.fmtNum(igstTotal) },
-            { label: 'Total', value: 'Rs.' + this.fmtNum(grandTotal), bold: true }
+            // The total is in whole rupees (as the amount in words is); the paise go on a Round Off line
+            ...(Math.round(grandTotal) !== grandTotal ? [{ label: 'Round Off', value: this.fmtNum(Math.round(grandTotal) - grandTotal) }] : []),
+            { label: 'Total', value: 'Rs.' + this.fmtNum(Math.round(grandTotal)), bold: true }
         ];
 
         // Draw summary table

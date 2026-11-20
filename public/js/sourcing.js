@@ -1490,7 +1490,17 @@ async function handleVendorCreation() {
     if (window._applyVendorSelection) window._applyVendorSelection(vendor._id, vendor.name);
     showToast(`"${name}" created and selected`, 'success');
   } catch (error) {
-    showToast(error.message || 'Failed to create vendor', 'error');
+    // Already on file (perhaps under different capitals, or added by a colleague): just use that one
+    const existing = error.status === 409 && error.data && error.data.existing;
+    if (existing && existing._id) {
+      if (!vendors.some(v => v._id === existing._id)) vendors.push(existing);
+      closeAddVendorModal();
+      await populateVendorSelect();
+      if (window._applyVendorSelection) window._applyVendorSelection(existing._id, existing.name);
+      showToast(`"${existing.name}" is already a vendor, so it was selected`, 'info');
+      return;
+    }
+    if (!error.handled) showToast(error.message || 'Failed to create vendor', 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = origText; }
   }

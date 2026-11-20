@@ -156,10 +156,14 @@ test('customers: create, validation, duplicates, delete guard', async () => {
 });
 
 test('products: permission message, validation, duplicates', async () => {
-    // Sales can't add materials: the server says so (the UI no longer offers the button)
-    const denied = await api('POST', '/products', { token: tokens.salesEntry, body: { materialName: 'Cement', uom: 'Bags' } });
-    assert.equal(denied.status, 403);
-    assert.match(denied.data.error, /material\.create/);
+    // Roles without material.create are refused, and the server says which permission is missing
+    for (const who of ['purchEntry', 'kamMgr']) {
+        const denied = await api('POST', '/products', { token: tokens[who], body: { materialName: 'Cement', uom: 'Bags' } });
+        assert.equal(denied.status, 403, who);
+        assert.match(denied.data.error, /material\.create/);
+    }
+    // Sales raise enquiries, so they may add a material that is not in the master yet
+    assert.equal((await api('POST', '/products', { token: tokens.salesEntry, body: { materialName: 'Sales Added Item', uom: 'Nos' } })).status, 201);
 
     const ok = await api('POST', '/products', { token: tokens.purchMgr, body: { materialName: 'Cement', uom: 'Bags', brand: 'UltraTech' } });
     assert.equal(ok.status, 201);

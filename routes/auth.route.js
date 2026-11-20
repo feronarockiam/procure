@@ -76,12 +76,14 @@ router.post('/login', async (req, res) => {
         // Their role, or (only for accounts that predate roles) the built-in equivalent of the old word.
         // A role id that points at a role which no longer exists means no access: the same answer the
         // server gives on every other request, never a quiet upgrade to a built-in role.
-        const access = user.roleId ? await Role.findById(user.roleId) : legacyAccess(user.role);
+        // (looked up together with recording the sign-in time: one database round trip instead of two)
+        const previousLoginAt = user.lastLoginAt || null;
+        const [access] = await Promise.all([
+            user.roleId ? Role.findById(user.roleId) : legacyAccess(user.role),
+            User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }),
+        ]);
 
         const token = signToken(user, access);
-
-        const previousLoginAt = user.lastLoginAt || null;
-        await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
         invalidateUserCache(user._id);
         await audit(req, {
             action: 'auth.login', entity: 'user', entityId: user._id, entityLabel: user.email, summary: `${user.name} signed in`,

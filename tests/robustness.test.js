@@ -80,7 +80,10 @@ test('every protected route refuses a visitor who is not signed in, and a forged
 test('a hostile body cannot change who someone is or what they can do', async () => {
     const seller = await t.makePerson('lowly', t.roles['Sales Operations – Entry'], 'Lowly');
     // mass assignment: extra fields on a profile or login are ignored
-    await t.api('POST', '/auth/change-password', { token: seller.token, body: { currentPassword: t.PASSWORD, newPassword: 'another-pass-1', roleId: String(t.roles['Admin']._id), role: 'admin', permissions: ['user.edit'] } });
+    const changed = await t.api('POST', '/auth/change-password', { token: seller.token, body: { currentPassword: t.PASSWORD, newPassword: 'another-pass-1', roleId: String(t.roles['Admin']._id), role: 'admin', permissions: ['user.edit'] } });
+    assert.equal(changed.status, 200);
+    // a password change ends older sessions and hands back a fresh token
+    seller.token = changed.data.token;
     const me = await t.api('GET', '/auth/me', { token: seller.token });
     assert.ok(!me.data.user.permissions.includes('user.edit'));
     assert.equal(me.data.user.roleName, 'Sales Operations – Entry');

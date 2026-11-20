@@ -256,7 +256,10 @@ async function apiCall(endpoint, options = {}) {
         }
 
         if (!response.ok) {
-            throw new Error(data.error || 'Request failed');
+            const err = new Error(data.error || 'Request failed');
+            err.status = response.status;
+            err.data = data; // e.g. a 409 "already exists" carries the existing record
+            throw err;
         }
 
         return data;

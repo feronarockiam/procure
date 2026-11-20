@@ -342,7 +342,7 @@ class QuotationDocxGenerator {
                 new TableRow({
                     children: [
                         new TableCell({ borders: borderStyle, children: [new Paragraph({ children: [new TextRun({ text: "Total", bold: true, size: 20 })] })] }),
-                        new TableCell({ borders: borderStyle, children: [new Paragraph({ children: [new TextRun({ text: "Rs." + this.fmtNum(totals.grandTotal), bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+                        new TableCell({ borders: borderStyle, children: [new Paragraph({ children: [new TextRun({ text: "Rs." + this.fmtNum(Math.round(totals.grandTotal)), bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
                     ],
                 }),
             ],

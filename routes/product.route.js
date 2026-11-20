@@ -5,6 +5,9 @@ const { handleRouteError } = require('../middleware/errors');
 const { audit } = require('../utils/audit');
 const { isValidId, cleanString, escapeRegex } = require('../middleware/validate');
 
+// "Acme  Traders" and "Acme Traders" are one name
+const cleanName = (value) => { const text = cleanString(value); return text && text.replace(/\s+/g, ' '); };
+
 const router = express.Router();
 
 // Same material = same name + UOM + brand (case-insensitive). Different brands of one material are legitimate.
@@ -19,7 +22,7 @@ const duplicateProduct = async ({ materialName, uom, brand }, exceptId) => {
             : { $in: [null, '', 'Generic', 'generic'] },
     };
     if (exceptId) query._id = { $ne: exceptId };
-    return Product.exists(query);
+    return Product.findOne(query);
 };
 
 // GET /api/products
@@ -36,12 +39,14 @@ router.get('/', authenticateToken, requirePermission('material.view'), async (re
 router.post('/', authenticateToken, requirePermission('material.create'), async (req, res) => {
     try {
         const { description, hsnCode, brand, specification } = req.body;
-        const materialName = cleanString(req.body.materialName);
+        const materialName = cleanName(req.body.materialName);
         const uom = cleanString(req.body.uom);
         if (!materialName || !uom) return res.status(400).json({ error: 'materialName and uom are required' });
 
-        if (await duplicateProduct({ materialName, uom, brand: cleanString(brand) })) {
-            return res.status(409).json({ error: `"${materialName}" (${uom}) already exists in the material master` });
+        const existing = await duplicateProduct({ materialName, uom, brand: cleanString(brand) });
+        if (existing) {
+            // Hand back the one that exists, so a screen adding it "on the fly" can simply pick it
+            return res.status(409).json({ error: `"${existing.materialName}" (${existing.uom}) already exists in the material master`, existing });
         }
 
         const product = new Product({ materialName, uom, description, hsnCode, brand, specification });
@@ -61,7 +66,7 @@ router.put('/:id', authenticateToken, requirePermission('material.edit'), async 
 
         const updateData = { description, hsnCode, brand, specification };
         if (req.body.materialName !== undefined) {
-            updateData.materialName = cleanString(req.body.materialName);
+            updateData.materialName = cleanName(req.body.materialName);
             if (!updateData.materialName) return res.status(400).json({ error: 'materialName cannot be blank' });
         }
         if (req.body.uom !== undefined) {

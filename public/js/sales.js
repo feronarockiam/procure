@@ -1087,6 +1087,15 @@ async function handleProductCreation() {
         closeAddProductModal();
         showToast('Product created and selected!', 'success');
     } catch (error) {
+        // Already in the master (perhaps added by a colleague since this page loaded): just use that one
+        const existing = error.status === 409 && error.data && error.data.existing;
+        if (existing && existing._id) {
+            if (!products.some(p => p._id === existing._id)) products.push(existing);
+            selectProduct(existing._id, existing.materialName);
+            closeAddProductModal();
+            showToast(`"${existing.materialName}" (${existing.uom}) is already in the material master, so it was selected`, 'info');
+            return;
+        }
         console.error('Create product error:', error);
         if (!error.handled) showToast(error.message || 'Failed to create product', 'error');
     } finally {
@@ -1598,7 +1607,7 @@ async function showSalesPriceModal(enquiryId, itemId) {
               <label class="radio-option ${item.selectedVendorQuoteId?._id === q._id ? 'selected' : ''}">
                 <div class="flex gap-3" style="align-items: flex-start;">
                   <input type="radio" name="selectedQuote" value="${q._id}" 
-                    data-price="${q.vendorPrice}"
+                    data-price="${landedUnitCost(q, item.quantity)}"
                     ${item.selectedVendorQuoteId?._id === q._id ? 'checked' : ''}
                     onchange="updateCostPrice(this.getAttribute('data-price')); this.closest('.radio-option').classList.add('selected'); document.querySelectorAll('.radio-option').forEach(r => { if (r !== this.closest('.radio-option')) r.classList.remove('selected'); });">
                   <div class="radio-content" style="flex: 1;">
@@ -1856,6 +1865,14 @@ async function viewItemQuotes(itemId) {
 
 function closeViewQuotesModal() {
     document.getElementById('viewQuotesModal').classList.remove('active');
+}
+
+// What one unit really costs us: the vendor's price plus its share of the freight. The customer's quotation has no
+// freight line, so the selling price (and the margin worked out from it) must cover freight too.
+function landedUnitCost(quote, quantity) {
+    const freight = Number(quote.freightPrice) || 0;
+    const qty = Number(quantity) > 0 ? Number(quantity) : 1;
+    return Math.round((Number(quote.vendorPrice) + freight / qty) * 100) / 100;
 }
 
 function updateCostPrice(price) {

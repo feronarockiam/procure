@@ -6,6 +6,9 @@ const { handleRouteError } = require('../middleware/errors');
 const { audit, inr } = require('../utils/audit');
 const { isValidId, asString, cleanString, escapeRegex, toNonNegative } = require('../middleware/validate');
 
+// "Acme  Traders" and "Acme Traders" are one name
+const cleanName = (value) => { const text = cleanString(value); return text && text.replace(/\s+/g, ' '); };
+
 const router = express.Router();
 
 // Statuses an item can still take a (new) vendor quote in. A priced item keeps its status when
@@ -30,7 +33,7 @@ const recomputeCheapest = async (enquiryItemId) => {
 const vendorNameTaken = async (name, exceptId) => {
     const query = { name: new RegExp(`^${escapeRegex(name)}$`, 'i') };
     if (exceptId) query._id = { $ne: exceptId };
-    return Vendor.exists(query);
+    return Vendor.findOne(query);
 };
 
 const validEmail = (value) => value === undefined || value === null || value === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -310,10 +313,12 @@ router.post('/whatsapp-message', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, requirePermission('vendor.create'), async (req, res) => {
     try {
         const { contactPerson, email, phone, specialization, address } = req.body;
-        const name = cleanString(req.body.name);
+        const name = cleanName(req.body.name);
         if (!name) return res.status(400).json({ error: 'Vendor name is required' });
         if (!validEmail(email)) return res.status(400).json({ error: 'Email address is not valid' });
-        if (await vendorNameTaken(name)) return res.status(409).json({ error: `A vendor named "${name}" already exists` });
+        const existing = await vendorNameTaken(name);
+        // Hand back the one that exists, so the quote screen can simply pick it
+        if (existing) return res.status(409).json({ error: `A vendor named "${existing.name}" already exists`, existing });
 
         const vendor = new Vendor({ name, contactPerson, email, phone, specialization, address });
         await vendor.save();
@@ -332,7 +337,7 @@ router.put('/:id', authenticateToken, requirePermission('vendor.edit'), async (r
 
         const updateData = { contactPerson, email, phone, specialization, address };
         if (req.body.name !== undefined) {
-            const name = cleanString(req.body.name);
+            const name = cleanName(req.body.name);
             if (!name) return res.status(400).json({ error: 'Vendor name cannot be blank' });
             if (await vendorNameTaken(name, req.params.id)) return res.status(409).json({ error: `A vendor named "${name}" already exists` });
             updateData.name = name;

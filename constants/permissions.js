@@ -89,6 +89,7 @@ const DEFAULT_ROLES = [
       'customer.view',
       'customer.create',
       'material.view',
+      'material.create', // add a material that is not in the master yet, while raising the enquiry
       'vendor.view',
     ],
     category: 'sales',
@@ -119,6 +120,7 @@ const DEFAULT_ROLES = [
       'customer.view',
       'customer.create',
       'material.view',
+      'material.create', // add a material that is not in the master yet, while raising the enquiry
       'vendor.view',
       'dashboard.insights',
     ],

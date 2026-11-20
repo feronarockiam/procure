@@ -68,9 +68,16 @@ app.use(express.static(path.join(__dirname, 'public'), {
     },
 }));
 
+// API answers depend on who is signed in, so no browser or proxy may keep them. Without this the host marks them
+// cacheable, and after switching accounts the browser reuses a reply (with the previous person's X-Access-Version),
+// which made pages reload over and over.
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
+
 // What the pages need to know before anyone has signed in. Answered without the database.
 app.get('/api/config', (req, res) => {
-    res.set('Cache-Control', 'no-store');
     res.json({ demoLogin: config.showDemoLogin() });
 });
 

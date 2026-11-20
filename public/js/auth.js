@@ -180,6 +180,12 @@ function noticeAccessVersion(version) {
     accessRefreshInFlight = true;
     refreshSession().then(ok => {
         if (!ok) return;
+        // Never reload twice in a row for the same change: if the fresh session still disagrees, a reload won't help
+        const after = getUser();
+        let lastReload = null;
+        try { lastReload = sessionStorage.getItem('access_reload'); } catch (_) {}
+        if (after && after.accessVersion === lastReload) return;
+        try { sessionStorage.setItem('access_reload', after ? after.accessVersion : ''); } catch (_) {}
         showToast('Your access was just updated by an administrator. Refreshing…', 'info');
         setTimeout(() => window.location.reload(), 1500);
     }).finally(() => { accessRefreshInFlight = false; });

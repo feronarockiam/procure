@@ -395,7 +395,7 @@ tr:last-child td {
 
 .badge-pending {
   background: rgb(255 237 213);
-  color: rgb(233, 102, 50);
+  color: rgb(154 52 18);
 }
 
 .badge-assigned {
@@ -410,12 +410,12 @@ tr:last-child td {
 
 .badge-sales-priced {
   background: rgb(209 250 229);
-  color: rgb(5 150 105);
+  color: rgb(6 95 70);
 }
 
 .badge-completed {
   background: rgb(187 247 208);
-  color: rgb(21 128 61);
+  color: rgb(20 83 45);
 }
 
 .badge-active {
@@ -1997,4 +1997,11 @@ select:focus {
 .vendor-price-badge.not-cheapest {
   background: #f3f4f6;
   color: #4b5563;
+}
+/* Long lists: the browser can skip laying out and painting rows that are scrolled out of view.
+   (Hundreds of enquiries otherwise cost layout work on every redraw. `auto` remembers each row's real height.) */
+.enquiry-row,
+.enquiry-accordion-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 72px;
 }

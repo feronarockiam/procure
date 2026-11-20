@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales &amp; Enquiries – Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
 <div class="app-container">
@@ -64,7 +67,7 @@
                 <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
                 <a href="/role-management.html" class="nav-item">
                     <i class="ph ph-shield-check"></i>
-                    <span>Role Management</span>
+                    <span>Roles &amp; Access</span>
                 </a>
             </div>
 
@@ -145,6 +148,9 @@
                             <div id="notificationList" class="notification-list"><div class="spinner"></div></div>
                         </div>
                     </div>
+                    <button class="btn btn-secondary" id="exportItemsBtn" onclick="exportItemsCsv()" title="Download the items listed here as a spreadsheet">
+                        <i class="ph ph-download-simple"></i> Download
+                    </button>
                     <button class="btn btn-secondary" id="bulkUploadBtn" style="display:none" onclick="showBulkUploadModal()">
                         <i class="ph ph-upload-simple"></i> Bulk Upload
                     </button>
@@ -158,7 +164,7 @@
         <!-- Insights -->
         <div class="dashboard-section-header">
             <div class="status-indicator"></div>
-            <h2>Insights You Need</h2>
+            <h2>At a glance <span id="insightScope" class="text-muted" style="font-size:0.8rem;font-weight:500;margin-left:0.4rem"></span></h2>
         </div>
         <div class="dashboard-grid">
             <div class="insight-card urgent">
@@ -202,7 +208,7 @@
                 <input type="text" id="searchEnquiries"
                     placeholder="Search by enquiry number, customer name, or product..."
                     style="flex:1;border:none;background:transparent;outline:none;font-size:1rem"
-                    oninput="handleSearch()" />
+                    oninput="handleSearchDebounced()" />
             </div>
             <div class="filter-row" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem">
                 <span class="filter-label"><i class="ph ph-funnel-simple"></i> Status</span>
@@ -215,7 +221,7 @@
             </div>
         </div>
 
-        <div id="enquiriesList"><div class="spinner"></div></div>
+        <div id="enquiriesList" data-skeleton="5"></div>
 
     </main>
 </div>
@@ -233,7 +239,7 @@
             <div class="form-group" style="margin-bottom:2rem">
                 <label style="font-weight:600;margin-bottom:0.75rem;display:block;color:var(--text-secondary)">Select Customer</label>
                 <div style="display:flex;gap:0.75rem;align-items:stretch">
-                    <select id="customerSelect" style="flex:1;padding:0.875rem;border-radius:0.5rem">
+                    <select id="customerSelect" onchange="updateCreateState()" style="flex:1;padding:0.875rem;border-radius:0.5rem">
                         <option value="">Select customer...</option>
                     </select>
                     <button id="addCustomerInlineBtn" class="btn btn-secondary" onclick="showAddCustomerModal()"
@@ -253,12 +259,12 @@
                         <div id="productSearchResults" class="autocomplete-results"></div>
                         <input type="hidden" id="selectedProductId">
                     </div>
-                    <input type="number" id="quantity" placeholder="Qty"
-                        style="width:100px;padding:0.875rem;border-radius:0.5rem" min="1">
+                    <input type="number" id="quantity" placeholder="Qty" aria-label="Quantity" onkeydown="quantityKeydown(event)"
+                        style="width:100px;padding:0.875rem;border-radius:0.5rem" min="1" step="any">
                     <button class="btn btn-primary" onclick="addToCart()" style="white-space:nowrap;padding:0 1.5rem">
-                        <i class="ph ph-plus-circle"></i> Add to Cart
+                        <i class="ph ph-plus-circle"></i> Add item
                     </button>
-                    <button class="btn btn-secondary" onclick="showAddProductModal()" title="Add New Product Master" style="padding:0 1rem">
+                    <button id="addProductInlineBtn" class="btn btn-secondary" onclick="showAddProductModal()" title="Add a new material" aria-label="Add a new material" style="display:none;padding:0 1rem">
                         <i class="ph ph-plus"></i>
                     </button>
                 </div>
@@ -267,8 +273,9 @@
                 style="min-height:120px;background:var(--bg-page);border-radius:0.75rem;border:1px dashed var(--border-strong);padding:1rem"></div>
             <div class="flex gap-2" style="justify-content:flex-end;border-top:1px solid var(--border);padding-top:2rem">
                 <button class="btn btn-secondary" onclick="closeNewEnquiryModal()" style="padding:0.75rem 1.5rem">Cancel</button>
-                <button class="btn btn-primary" onclick="createEnquiry()" style="padding:0.75rem 2.5rem;font-size:1rem;font-weight:600">
-                    <i class="ph ph-check"></i> Create Enquiry
+                <span id="createHint" class="text-muted" role="status" style="align-self:center;font-size:0.85rem;margin-right:auto"></span>
+                <button class="btn btn-primary" id="createEnquiryBtn" onclick="createEnquiry()" disabled style="padding:0.75rem 2.5rem;font-size:1rem;font-weight:600">
+                    <i class="ph ph-check"></i> <span id="createLabel">Create enquiry</span>
                 </button>
             </div>
         </div>
@@ -634,12 +641,12 @@
 </div>
 
 <!-- ── Scripts ────────────────────────────────────────────────────────────── -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<!-- PDF, Word and Excel tools load in the background once the page is up (see js/libs.js) -->
+<script src="/js/libs.js" data-libs="jspdf,autotable,docx,filesaver,xlsx"></script>
 <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/todo.js"></script>
+    <script src="/js/bulk-assign.js"></script>
 <script src="/js/layout.js"></script>
 <script src="/js/notifications.js"></script>
 <script src="/js/pdf-generator.js"></script>

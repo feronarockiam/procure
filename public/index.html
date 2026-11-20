@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         body {
             margin: 0;
@@ -179,7 +179,7 @@
         }
         .stat-label {
             font-size: 0.7rem;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.04em;
@@ -208,7 +208,7 @@
         }
         .form-header p {
             font-size: 0.875rem;
-            color: #94a3b8;
+            color: var(--text-muted);
         }
 
         /* Error */
@@ -270,14 +270,14 @@
             color: #0f172a;
             transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
         }
-        .modern-input::placeholder { color: #cbd5e1; }
+        .modern-input::placeholder { color: #6b7280; }
         .modern-input:focus {
             outline: none;
             background: #fff;
             border-color: #3B9FD9;
             box-shadow: 0 0 0 3px rgba(59,159,217,0.12);
         }
-        .modern-input:focus ~ .input-icon { color: #3B9FD9; }
+        .modern-input:focus ~ .input-icon { color: var(--primary); }
 
         /* Reverse icon z-order so focus selector works */
         .input-wrap { display: flex; flex-direction: column; }
@@ -312,7 +312,7 @@
 
         .forgot-link {
             font-size: 0.82rem;
-            color: #3B9FD9;
+            color: var(--primary);
             text-decoration: none;
             font-weight: 600;
         }
@@ -344,6 +344,16 @@
         }
         .btn-signin:active { transform: translateY(0); }
 
+        .pw-toggle {
+            position: absolute; right: 0.55rem; top: 50%; transform: translateY(-50%);
+            width: 2.1rem; height: 2.1rem; border: 0; border-radius: 8px; background: transparent;
+            color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; z-index: 2;
+        }
+        .pw-toggle:hover { background: rgba(15,23,42,0.06); color: #0f172a; }
+        .pw-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+        .caps-warning { margin-top: 0.4rem; font-size: 0.78rem; color: #92400e; display: flex; align-items: center; gap: 0.35rem; font-weight: 500; }
+        .caps-warning[hidden] { display: none; }
+
         /* ── Demo creds ── */
         .demo-section {
             margin-top: 1.75rem;
@@ -353,7 +363,7 @@
         .demo-label {
             font-size: 0.72rem;
             font-weight: 600;
-            color: #cbd5e1;
+            color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.07em;
             display: flex;
@@ -374,7 +384,7 @@
         .demo-row-label {
             font-size: 0.68rem;
             font-weight: 600;
-            color: #cbd5e1;
+            color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             width: 62px;
@@ -413,7 +423,7 @@
         .demo-password {
             margin-top: 0.65rem;
             font-size: 0.7rem;
-            color: #cbd5e1;
+            color: #64748b;
             text-align: center;
         }
         .demo-password code {
@@ -466,8 +476,11 @@
         <div class="brand-panel">
             <div class="brand-top">
                 <div class="brand-logo">
-                    <div class="brand-logo-icon">
-                        <i class="ph ph-hexagon-fill"></i>
+                    <div class="brand-logo-icon" aria-hidden="true">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2.5 20 7v10l-8 4.5L4 17V7l8-4.5Z" fill="rgba(255,255,255,0.22)" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="m8.4 12.2 2.5 2.5 4.8-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
                     <span class="brand-logo-text">Precise Procure</span>
                 </div>
@@ -500,14 +513,14 @@
                 <p>Sign in to your workspace</p>
             </div>
 
-            <div id="errorMessage" class="error-message"></div>
+            <div id="errorMessage" class="error-message" role="alert" aria-live="assertive"></div>
 
             <form id="loginForm">
                 <div class="form-group">
                     <label for="email">Email address</label>
                     <div class="input-wrap">
                         <i class="ph ph-envelope input-icon"></i>
-                        <input type="email" id="email" name="email" required
+                        <input type="email" id="email" name="email" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false"
                             placeholder="you@company.com" class="modern-input">
                     </div>
                 </div>
@@ -516,17 +529,17 @@
                     <label for="password">Password</label>
                     <div class="input-wrap">
                         <i class="ph ph-lock-key input-icon"></i>
-                        <input type="password" id="password" name="password" required
-                            placeholder="••••••••" class="modern-input">
+                        <input type="password" id="password" name="password" required autocomplete="current-password"
+                            placeholder="Enter your password" class="modern-input" style="padding-right:2.9rem">
+                        <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false" title="Show password">
+                            <i class="ph ph-eye" aria-hidden="true"></i>
+                        </button>
                     </div>
+                    <div class="caps-warning" id="capsWarning" role="status" hidden><i class="ph ph-warning" aria-hidden="true"></i> Caps Lock is on</div>
                 </div>
 
-                <div class="form-row">
-                    <label class="checkbox-label">
-                        <input type="checkbox" checked>
-                        Remember me
-                    </label>
-                    <a href="#" class="forgot-link">Forgot password?</a>
+                <div class="form-row" style="justify-content:flex-end">
+                    <a href="#" class="forgot-link" id="forgotLink">Forgot password?</a>
                 </div>
 
                 <button type="submit" class="btn-signin">
@@ -536,7 +549,7 @@
             </form>
 
             <!-- Demo credentials -->
-            <div class="demo-section">
+            <div class="demo-section" id="demoSection" hidden>
                 <div class="demo-label">
                     <i class="ph ph-cursor-click" style="font-size:0.85rem"></i>
                     Quick login — click a role
@@ -547,7 +560,7 @@
                         <div class="chips">
                             <div class="chip" onclick="fillCreds('admin@procure.com', this)" style="--c:#10B981">
                                 <span class="chip-dot" style="background:#10B981"></span>
-                                <i class="ph ph-shield-star" style="color:#10B981;font-size:0.8rem"></i> Admin
+                                <i class="ph ph-shield-star" style="color:var(--success);font-size:0.8rem"></i> Admin
                             </div>
                         </div>
                     </div>
@@ -598,12 +611,18 @@
     </div>
 
     <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
     <script src="/js/doodle-bg.js"></script>
     <script>
         const loginForm     = document.getElementById('loginForm');
         const errorMessage  = document.getElementById('errorMessage');
         const loginBtnText  = document.getElementById('loginBtnText');
         const loginSpinner  = document.getElementById('loginSpinner');
+
+        // The quick-login buttons are for demos only: the server says whether to show them
+        fetch('/api/config').then(r => r.ok ? r.json() : null).then(c => {
+            if (c && c.demoLogin) document.getElementById('demoSection').hidden = false;
+        }).catch(() => {});
 
         if (getToken()) {
             const user = getUser();
@@ -632,6 +651,35 @@
             }
             document.querySelector('.btn-signin').focus();
         }
+
+        // Show / hide the password
+        const pwInput = document.getElementById('password');
+        const pwToggle = document.getElementById('pwToggle');
+        pwToggle.addEventListener('click', () => {
+            const show = pwInput.type === 'password';
+            pwInput.type = show ? 'text' : 'password';
+            pwToggle.setAttribute('aria-pressed', String(show));
+            pwToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            pwToggle.title = show ? 'Hide password' : 'Show password';
+            pwToggle.querySelector('i').className = show ? 'ph ph-eye-slash' : 'ph ph-eye';
+            pwInput.focus();
+        });
+        // Warn when Caps Lock is on while typing a password
+        const capsWarning = document.getElementById('capsWarning');
+        const noteCaps = (event) => { if (typeof event.getModifierState === 'function') capsWarning.hidden = !event.getModifierState('CapsLock'); };
+        pwInput.addEventListener('keydown', noteCaps);
+        pwInput.addEventListener('keyup', noteCaps);
+        pwInput.addEventListener('blur', () => { capsWarning.hidden = true; });
+
+        // There is no self-service reset by email: an administrator sets a new password (Employees → Edit)
+        document.getElementById('forgotLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            showDialog({
+                title: 'Forgot your password?',
+                bodyHtml: '<p style="line-height:1.6;margin:0">Ask your administrator to set a new password for you. They can do it in <b>Employees → Edit</b>, and you can then change it to one of your own from <b>My account</b> after signing in.</p>',
+                buttons: [{ label: 'OK', kind: 'primary' }],
+            });
+        });
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();

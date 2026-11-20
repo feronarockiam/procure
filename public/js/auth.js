@@ -34,6 +34,28 @@ function hasPermission(key) {
     return false;
 }
 
+// Run `fn` once the caller has stopped for `wait` ms (typing in a search box redraws a long list; once per pause is plenty)
+function debounce(fn, wait = 200) {
+    let timer = null;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+
+// A value passed as an argument inside an inline click handler in markup: JS-quote it first, then HTML-escape the result,
+// so a name containing quotes, brackets or markup stays plain text instead of becoming code.
+function jsArg(value) {
+    return escapeHtml(JSON.stringify(String(value ?? '')));
+}
+
+// Escape user-supplied text before putting it into innerHTML / inline attributes
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+    ));
+}
+
 function hasAnyPermission(keys) {
     const user = getUser();
     if (!user || !Array.isArray(user.permissions)) return false;
@@ -54,30 +76,141 @@ function checkAuth() {
         window.location.href = '/';
         return null;
     }
-    return getUser();
+    const user = getUser();
+    // A session saved before the server started sending the list of screens this person may open:
+    // fetch it once and reload, instead of guessing from permissions here.
+    if (user && !Array.isArray(user.links)) {
+        refreshSession().then(ok => {
+            if (ok) { window.location.reload(); return; }
+            // Only a refused session is a reason to sign out. If the server just couldn't be reached, say so and stay put.
+            if (refreshSession.lastStatus === 401 || refreshSession.lastStatus === 403) { removeToken(); window.location.href = '/'; }
+            else showToast("Couldn't reach the server. Check your connection and reload the page.", 'error');
+        });
+        return null;
+    }
+    return user;
 }
 
-// Redirect to the user's assigned dashboard page after login
-function redirectToDashboard(dashboardPage) {
-    if (dashboardPage) {
-        window.location.href = '/' + dashboardPage;
-        return;
-    }
-    // Legacy fallback for tokens issued before dynamic roles
+// ── What this person may open ────────────────────────────────────────────────
+// The server decides (from the role) and sends the list at login. The browser only checks it.
+
+function canOpenHref(href) {
     const user = getUser();
-    const legacyRole = user && user.role;
-    if (legacyRole === 'admin') window.location.href = '/admin.html';
-    else if (legacyRole === 'sourcing') window.location.href = '/sourcing.html';
-    else window.location.href = '/sales.html';
+    return !!(user && Array.isArray(user.links) && user.links.includes(href));
+}
+
+function currentHref() {
+    // '/masters.html?type=customers' keeps its type; other pages are just the path
+    const { pathname, search } = window.location;
+    if (pathname === '/masters.html') {
+        const type = new URLSearchParams(search).get('type') || 'materials';
+        return `/masters.html?type=${type}`;
+    }
+    return pathname;
+}
+
+// Tell the administrators someone needs access (a notification with a link to that person's record; nothing changes until they act)
+async function requestAccess(wants, note) {
+    try {
+        const result = await apiCall('/access-requests', { method: 'POST', body: JSON.stringify({ wants, note: note || undefined }) });
+        showToast(result.sent > 0
+            ? (result.already ? 'You already asked. The administrators have been told.' : `Request sent to ${result.sent} administrator${result.sent === 1 ? '' : 's'}.`)
+            : 'There is no administrator to send this to. Please contact your manager directly.', result.sent > 0 ? 'success' : 'error');
+        return result.sent > 0;
+    } catch (error) {
+        showToast(error.message || 'Could not send the request', 'error');
+        return false;
+    }
+}
+
+// Not allowed here: say so, and let them ask for access in one click (instead of a dead end)
+function denyAccess(message, wanted) {
+    const user = getUser();
+    const start = user && user.landingPage ? '/' + user.landingPage : '/no-access.html';
+    const leave = () => { window.location.href = start === window.location.pathname ? '/no-access.html' : start; };
+    const what = wanted || 'this screen';
+    document.body.classList.add('access-denied'); // the screen behind the question stays out of sight
+    if (typeof showDialog !== 'function') { showToast(message || "Your role doesn't include this screen.", 'error'); setTimeout(leave, 1500); return; }
+    showDialog({
+        title: "This screen isn't part of your role",
+        bodyHtml: `<p style="margin:0 0 0.8rem;line-height:1.55">Your role${user && user.roleName ? ` (<b>${escapeHtml(user.roleName)}</b>)` : ''} doesn't include <b>${escapeHtml(what)}</b>. If you need it for your work, you can ask an administrator, who can give you access in a click.</p>
+            <label for="accessNote" style="font-size:0.8rem;font-weight:600">Why do you need it? <span class="text-muted" style="font-weight:400">(optional)</span></label>
+            <textarea id="accessNote" rows="2" maxlength="400" placeholder="e.g. I check the weekly volumes" style="width:100%;margin-top:0.25rem"></textarea>`,
+        buttons: [
+            { label: 'Go back', kind: 'secondary', onClick: leave },
+            { label: 'Ask for access', kind: 'primary', onClick: async () => { await requestAccess(what, (document.getElementById('accessNote') || {}).value || ''); leave(); } },
+        ],
+        onDismiss: leave,
+    });
+}
+
+// Call at the top of a page: true when this person's role includes the page
+function requirePageAccess(href) {
+    if (canOpenHref(href || currentHref())) return true;
+    const known = typeof NAV_META !== 'undefined' ? NAV_META[href || currentHref()] : null;
+    denyAccess("Your role doesn't include this screen.", known ? known.label : null);
+    return false;
+}
+
+// Ask the server what this person can do right now, and keep it. Resolves true when it worked.
+async function refreshSession() {
+    const token = getToken();
+    refreshSession.lastStatus = 0;
+    if (!token) return false;
+    try {
+        const response = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        refreshSession.lastStatus = response.status;
+        if (!response.ok) return false;
+        const data = await response.json();
+        const before = getUser();
+        // /auth/me doesn't know which sign-in was the previous one, so keep what the login gave us
+        saveUser({ ...data.user, lastLoginAt: before ? before.lastLoginAt : null });
+        return true;
+    } catch (_) {
+        return false; // lastStatus stays 0: the server couldn't be reached
+    }
+}
+
+// Every response carries a fingerprint of the person's role. When it differs from the one we hold, an
+// administrator changed the role: pick up the new access and reload so menus and buttons match.
+let accessRefreshInFlight = false;
+function noticeAccessVersion(version) {
+    const user = getUser();
+    if (!version || !user || !user.accessVersion || user.accessVersion === version || accessRefreshInFlight) return;
+    accessRefreshInFlight = true;
+    refreshSession().then(ok => {
+        if (!ok) return;
+        showToast('Your access was just updated by an administrator. Refreshing…', 'info');
+        setTimeout(() => window.location.reload(), 1500);
+    }).finally(() => { accessRefreshInFlight = false; });
+}
+
+// The enquiry list sends every open enquiry but only the newest closed ones. Say so once, so nobody wonders
+// where an old closed enquiry went.
+let shortListNoticeShown = false;
+function noticeShortList(response) {
+    const total = Number(response.headers.get('X-Total-Count'));
+    const returned = Number(response.headers.get('X-Returned-Count'));
+    if (shortListNoticeShown || !total || !returned || returned >= total) return;
+    shortListNoticeShown = true;
+    showToast(`Showing ${returned} of ${total} enquiries: every open one, and the newest closed ones. Older closed enquiries are left out to keep things quick.`, 'info');
+}
+
+// Redirect to the screen this person's role starts on
+function redirectToDashboard(landingPage) {
+    window.location.href = landingPage ? '/' + landingPage : '/no-access.html';
 }
 
 // ── API Helper ───────────────────────────────────────────────────────────────
 
+// options.silent: for loads a page can do without (say a pick-list this role isn't allowed to see). A refusal
+// is then reported to the caller only, with no "no permission" message on screen.
 async function apiCall(endpoint, options = {}) {
     const token = getToken();
+    const { silent, ...fetchOptions } = options;
 
     const mergedOptions = {
-        ...options,
+        ...fetchOptions,
         headers: {
             'Content-Type': 'application/json',
             ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -87,6 +220,8 @@ async function apiCall(endpoint, options = {}) {
 
     try {
         const response = await fetch(`${API_URL}${endpoint}`, mergedOptions);
+        noticeAccessVersion(response.headers.get('X-Access-Version'));
+        noticeShortList(response);
 
         if (response.status === 401) {
             showToast('Session expired — please log in again', 'error');
@@ -95,8 +230,14 @@ async function apiCall(endpoint, options = {}) {
         }
 
         if (response.status === 403) {
-            showToast('You do not have permission to perform this action', 'error');
-            return null;
+            // Throw (instead of returning null) so callers don't carry on as if the request worked
+            let detail = 'You do not have permission to perform this action';
+            try { detail = (await response.json()).error || detail; } catch (_) { /* non-JSON body */ }
+            if (!silent) showToast('You do not have permission to perform this action', 'error');
+            const err = new Error(detail);
+            err.status = 403;
+            err.handled = !silent; // a message was already shown, unless it was a silent load
+            throw err;
         }
 
         let data;
@@ -168,10 +309,25 @@ function getStatusBadge(status) {
 }
 
 // Render a role badge using the role's own color
+// A colour's text shade for use on a light tint of itself. Role colours are chosen by people (sky blue, amber, green...)
+// and most of them are too light to read as text on their own pale background, so darken until they can be read.
+function readableTextColor(hex, tintAlpha = 0.13, minRatio = 4.5) {
+    const toRgb = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+    const channel = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const luminance = ([r, g, b]) => 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+    const base = toRgb(hex);
+    const tint = base.map(c => Math.round(c * tintAlpha + 255 * (1 - tintAlpha)));
+    let rgb = base;
+    for (let step = 0; step < 24 && contrast(rgb, tint) < minRatio; step++) rgb = rgb.map(c => Math.round(c * 0.92));
+    return '#' + rgb.map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
 function getRoleBadge(roleName, roleColor) {
-    const color = roleColor || '#3B9FD9';
+    // Only accept a real hex colour into the style attribute; the name is user text
+    const color = /^#[0-9a-fA-F]{6}$/.test(roleColor || '') ? roleColor : '#1b72b3';
     const bg = color + '22'; // 13% opacity hex
-    return `<span class="badge" style="background:${bg};color:${color};border:1px solid ${color}44">${roleName}</span>`;
+    return `<span class="badge" style="background:${bg};color:${readableTextColor(color)};border:1px solid ${color}66">${escapeHtml(roleName)}</span>`;
 }
 
 // ── Material-first view helper ───────────────────────────────────────────────
@@ -207,7 +363,7 @@ function getViewToggleHTML(activeMode) {
     ];
     return `<div class="view-toggle">
         ${modes.map(m => `<button class="view-toggle-btn${activeMode === m.key ? ' active' : ''}" onclick="setViewMode('${m.key}')">
-            <i class="ph ${m.icon}"></i> ${m.label}
+            <i class="ph ${m.icon}"></i> ${escapeHtml(m.label)}
         </button>`).join('')}
     </div>`;
 }
@@ -232,43 +388,65 @@ function buildGlassTable(headers, rows, metaText = '') {
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 
-function showToast(message, type = 'success') {
-    const existing = document.querySelectorAll('.toast-notification');
-    existing.forEach(t => t.remove());
-
+// options.action = { label, onClick } adds a button to the notice (used for "Undo"); the notice then stays a little longer
+function showToast(message, type = 'success', options = {}) {
     const icons = { success: 'ph-check-circle', error: 'ph-x-circle', info: 'ph-info', warning: 'ph-warning' };
-    const colors = { success: 'var(--success)', error: 'var(--danger)', info: 'var(--primary)', warning: 'var(--warning)' };
+    const colors = { success: 'var(--success)', error: 'var(--danger)', info: 'var(--primary)', warning: 'var(--warning-text)' };
+    const kind = icons[type] ? type : 'info';
+    // The message is plain text. It often contains something a person typed (a customer's name, a server message
+    // quoting it), which must never be read as markup.
+    const message_ = String(message);
+
+    let stack = document.getElementById('toastStack');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'toastStack';
+        stack.className = 'toast-stack';
+        document.body.appendChild(stack);
+    }
+    // the same notice twice in a row (a double click) is one notice
+    Array.from(stack.children).forEach(t => { if (t.dataset.message === message_) t.remove(); });
+    // never more than four at once: the oldest goes
+    while (stack.children.length >= 4) stack.firstElementChild.remove();
 
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
-    toast.innerHTML = `<i class="ph ${icons[type] || icons.info}" style="font-size:1.1rem;color:${colors[type] || colors.info};flex-shrink:0"></i><span>${message}</span>`;
-    toast.style.cssText = `
-        position:fixed;top:1.5rem;right:1.5rem;
-        display:flex;align-items:center;gap:0.6rem;
-        background:rgba(255,255,255,0.95);
-        backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-        border:1px solid rgba(255,255,255,0.6);
-        color:var(--text-primary);padding:0.85rem 1.25rem;
-        border-radius:0.75rem;box-shadow:0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.06);
-        z-index:10000;font-size:0.875rem;font-weight:500;
-        max-width:360px;animation:toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
-        border-left:3px solid ${colors[type] || colors.info};
-    `;
-    document.body.appendChild(toast);
+    toast.dataset.message = message_;
+    toast.style.setProperty('--toast-color', colors[kind]);
+    toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    toast.setAttribute('aria-live', kind === 'error' ? 'assertive' : 'polite');
 
-    // Inject keyframes once
-    if (!document.getElementById('toast-keyframes')) {
-        const style = document.createElement('style');
-        style.id = 'toast-keyframes';
-        style.textContent = `
-            @keyframes toastIn{from{opacity:0;transform:translateX(1rem) scale(0.95)}to{opacity:1;transform:translateX(0) scale(1)}}
-            @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(1rem)}}
-        `;
-        document.head.appendChild(style);
+    const icon = document.createElement('i');
+    icon.className = `ph ${icons[kind]} toast-icon`;
+    const text = document.createElement('span');
+    text.className = 'toast-text';
+    text.textContent = message_;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'toast-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.innerHTML = '<i class="ph ph-x"></i>';
+    toast.append(icon, text);
+    if (options.action) {
+        const action = document.createElement('button');
+        action.type = 'button';
+        action.className = 'toast-action';
+        action.textContent = options.action.label;
+        action.addEventListener('click', () => { dismiss(); options.action.onClick(); });
+        toast.append(action);
     }
+    toast.append(close);
+    stack.appendChild(toast);
 
-    setTimeout(() => {
-        toast.style.animation = 'toastOut 0.25s ease-in forwards';
+    const dismiss = () => {
+        clearTimeout(timer);
+        toast.classList.add('leaving');
         setTimeout(() => toast.remove(), 250);
-    }, 3500);
+    };
+    // long messages get longer to read; problems stay longer than confirmations; hovering pauses the clock
+    const readingTime = Math.min(12000, Math.max(options.action ? 9000 : kind === 'error' ? 7000 : 3500, 2500 + message_.length * 45));
+    let timer = setTimeout(dismiss, readingTime);
+    toast.addEventListener('mouseenter', () => clearTimeout(timer));
+    toast.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, 2500); });
+    close.addEventListener('click', dismiss);
 }

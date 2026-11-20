@@ -3,12 +3,15 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 
 <body>
@@ -67,7 +70,7 @@
                 <div style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;" class="menu-label">Access Control</div>
                 <a href="/role-management.html" class="nav-item">
                     <i class="ph ph-shield-check"></i>
-                    <span>Role Management</span>
+                    <span>Roles &amp; Access</span>
                 </a>
             </nav>
 
@@ -94,7 +97,7 @@
                 <div class="flex-between">
                     <div>
                         <h1>Dashboard Overview</h1>
-                        <p class="text-muted">Welcome back, here's your daily briefing.</p>
+                        <p class="text-muted" id="greetingSubtitle">Welcome back.</p>
                     </div>
                     <div class="flex gap-2 items-center">
                         <span class="text-muted" style="font-size: 0.875rem;">
@@ -109,12 +112,12 @@
 
             <!-- Key Stats (Fixed 5-Column Layout) -->
             <div class="stats-grid" id="statsGrid"
-                style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
                 <div class="spinner"></div>
             </div>
 
             <!-- Insights & Action Section -->
-            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
 
                 <!-- Strategic Insights -->
                 <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--primary-light);">
@@ -122,11 +125,10 @@
                         style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 1.5rem; color: white;">
                         <div class="flex-between mb-2">
                             <h3 style="color: white; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                                <i class="ph ph-lightbulb"></i> Strategic Insights
+                                <i class="ph ph-bell-ringing"></i> What needs attention
                             </h3>
                         </div>
-                        <p style="opacity: 0.9; font-size: 0.9rem; margin: 0;">Key performance indicators and actionable
-                            intelligence.</p>
+                        <p style="opacity: 0.9; font-size: 0.9rem; margin: 0;">What is slowing work down, with a link to each.</p>
                     </div>
                     <div id="aiInsightsList" style="padding: 1.5rem;">
                         <div class="spinner"></div>
@@ -144,7 +146,7 @@
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                             <div class="stat-card" style="background: var(--bg-hover); padding: 1rem;">
-                                <div class="text-muted text-xs">Total Revenue</div>
+                                <div class="text-muted text-xs" title="Selling price x quantity for every priced item, including enquiries not yet completed">Total Quoted Value</div>
                                 <div class="text-lg font-bold" id="totalRevenue">₹0</div>
                             </div>
                             <div class="stat-card" style="background: rgba(239, 68, 68, 0.1); padding: 1rem;">
@@ -191,14 +193,17 @@
                     <h3 class="mb-0"><i class="ph ph-table"></i> Recent Enquiries</h3>
                     <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
                         <input type="text" id="enquirySearch" placeholder="Search enquiries or materials..."
-                            style="padding: 0.5rem; font-size: 0.875rem; width: 220px;" onkeyup="filterEnquiries()">
-                        <select id="statusFilter" style="padding: 0.5rem; font-size: 0.875rem;"
+                            style="padding: 0.5rem; font-size: 0.875rem; width: 240px; max-width: 100%; flex: 0 1 240px;" onkeyup="filterEnquiriesTypingDebounced()" aria-label="Search enquiries or materials">
+                        <select id="statusFilter" aria-label="Filter by status" style="padding: 0.5rem; font-size: 0.875rem; width: auto; flex: 0 0 auto;"
                             onchange="filterEnquiries()">
                             <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
+                            <option value="unassigned">Unassigned</option>
+                            <option value="assigned">In progress</option>
+                            <option value="in_sales_query">Waiting for a reply</option>
                             <option value="vendor_quoted">Quoted</option>
-                            <option value="sales_priced">Priced</option>
+                            <option value="priced">Priced</option>
                             <option value="completed">Completed</option>
+                            <option value="unsuccessful">Unsuccessful</option>
                         </select>
                         <div id="viewToggleContainer"></div>
                     </div>
@@ -286,10 +291,11 @@
     </div>
 
     <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/todo.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/notifications.js"></script>
     <script src="/js/admin.js"></script>
-    <script src="/js/doodle-bg.js"></script>
 </body>
 
 </html>

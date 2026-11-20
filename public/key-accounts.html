@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Key Accounts – Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         /* ── 4-Tab Pipeline ───────────────────────────────────────── */
         .pipeline-tabs {
@@ -254,7 +257,7 @@
                 <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
                 <a href="/role-management.html" class="nav-item">
                     <i class="ph ph-shield-check"></i>
-                    <span>Role Management</span>
+                    <span>Roles &amp; Access</span>
                 </a>
             </div>
 
@@ -318,7 +321,7 @@
                         <i class="ph ph-handshake" style="color:var(--primary)"></i>
                         Key Accounts
                     </h1>
-                    <p class="text-muted" id="pageSubtitle">Monitor customer enquiries and track progress.</p>
+                    <p class="text-muted" id="greetingSubtitle">Monitor customer enquiries and track progress.</p>
                 </div>
                 <div class="flex gap-2 items-center" style="flex-wrap:wrap">
                     <div class="notification-wrapper">
@@ -341,7 +344,7 @@
         <!-- Main section tabs -->
         <div class="main-section-tabs" id="mainSectionTabs">
             <button class="section-tab" data-tab="clients" onclick="switchMainTab('clients')">
-                <i class="ph ph-buildings"></i> My Clients
+                <i class="ph ph-buildings"></i> My Customers
                 <span class="tab-badge" id="badge-clients">0</span>
             </button>
             <button class="section-tab" data-tab="enquiries" onclick="switchMainTab('enquiries')">
@@ -355,11 +358,11 @@
             </button>
         </div>
 
-        <!-- ── My Clients section ── -->
+        <!-- ── My Customers section ── -->
         <div id="clientsSection" style="display:none">
             <div class="filter-bar" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem">
                 <i class="ph ph-magnifying-glass" style="color:var(--text-muted)"></i>
-                <input type="text" id="clientSearch" placeholder="Search clients by name or contact…" oninput="renderClientsTab()" style="flex:1;min-width:180px">
+                <input type="text" id="clientSearch" placeholder="Search customers by name or contact…" oninput="renderClientsTabDebounced()" style="flex:1;min-width:180px">
             </div>
             <div id="clientsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem">
                 <div class="empty-state"><div class="spinner"></div></div>
@@ -398,7 +401,7 @@
 
         <!-- Filter chips row -->
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
-            <!-- Client filter chip (shown when drilling from My Clients) -->
+            <!-- Client filter chip (shown when drilling from My Customers) -->
             <div id="clientFilterChip" style="display:none">
                 <span style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.35rem 0.75rem;background:var(--primary-light);color:var(--primary-dark);border-radius:999px;font-size:0.82rem;font-weight:600;border:1px solid var(--primary)">
                     <i class="ph ph-buildings"></i>
@@ -412,7 +415,7 @@
             <div id="kaeFilterChip" style="display:none">
                 <span style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.35rem 0.75rem;background:#fef3c7;color:#92400e;border-radius:999px;font-size:0.82rem;font-weight:600;border:1px solid #fde68a">
                     <i class="ph ph-user-circle"></i>
-                    <span id="kaeFilterName"></span>'s clients
+                    <span id="kaeFilterName"></span>'s customers
                     <button onclick="clearKAEFilter()" style="background:none;border:none;cursor:pointer;padding:0;line-height:1;color:#92400e;display:flex;align-items:center">
                         <i class="ph ph-x" style="font-size:0.85rem"></i>
                     </button>
@@ -423,7 +426,7 @@
         <!-- Filter bar -->
         <div class="filter-bar" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
             <i class="ph ph-magnifying-glass" style="color:var(--text-muted)"></i>
-            <input type="text" id="searchInput" placeholder="Search enquiry number, customer, or material…" oninput="applyFilters()" style="flex:1;min-width:180px">
+            <input type="text" id="searchInput" placeholder="Search enquiry number, customer, or material…" oninput="applyFiltersDebounced()" style="flex:1;min-width:180px">
             <select id="kamFilter" style="display:none">
                 <option value="">All KAMs</option>
             </select>
@@ -500,9 +503,11 @@
 </div>
 
 <!-- jsPDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<!-- the PDF tools load in the background once the page is up (see js/libs.js) -->
+<script src="/js/libs.js" data-libs="jspdf,autotable"></script>
 <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/todo.js"></script>
 <script src="/js/layout.js"></script>
 <script src="/js/notifications.js"></script>
 <script src="/js/key-accounts.js"></script>

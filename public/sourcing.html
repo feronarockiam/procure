@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sourcing / Purchase – Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         .selection-bar {
             background: var(--glass-bg);
@@ -211,7 +214,7 @@
                 <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
                 <a href="/role-management.html" class="nav-item">
                     <i class="ph ph-shield-check"></i>
-                    <span>Role Management</span>
+                    <span>Roles &amp; Access</span>
                 </a>
             </div>
 
@@ -298,7 +301,7 @@
         <!-- Insights -->
         <div class="dashboard-section-header">
             <div class="status-indicator"></div>
-            <h2>Insights You Need</h2>
+            <h2>Your work at a glance</h2>
         </div>
         <div class="dashboard-grid">
             <div class="insight-card urgent">
@@ -342,7 +345,7 @@
                 <input type="text" id="searchSourcing"
                     placeholder="Search by enquiry #, customer, or material..."
                     style="flex:1;border:none;background:transparent;outline:none;font-size:1rem"
-                    oninput="handleSearch()" />
+                    oninput="handleSearchDebounced()" />
                 <button id="clearSearchBtn" onclick="clearSearch()"
                     style="display:none;border:none;background:none;cursor:pointer;color:var(--text-muted);padding:0.2rem;line-height:1">
                     <i class="ph ph-x-circle" style="font-size:1.15rem"></i>
@@ -393,7 +396,7 @@
         <div id="viewToggleContainer"></div>
         </div>
 
-        <div id="enquiriesList"><div class="spinner"></div></div>
+        <div id="enquiriesList" data-skeleton="5"></div>
 
     </main>
 </div>
@@ -472,6 +475,7 @@
                     </div>
                 </div>
             </div>
+            <div id="priceHint" role="status" style="display:none;font-size:0.82rem;line-height:1.45;margin:-0.75rem 0 1.25rem;padding:0.55rem 0.8rem;border-radius:0.5rem"></div>
             <div class="card" style="background:var(--primary-light);padding:1.5rem;margin-bottom:2rem;border-radius:0.75rem;border:1px solid rgba(var(--primary-rgb),0.2)">
                 <div class="flex-between">
                     <span style="font-weight:600;font-size:1.1rem;color:var(--primary-dark)">Total Price</span>
@@ -561,6 +565,9 @@
 
 <!-- ── Scripts ────────────────────────────────────────────────────────────── -->
 <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/todo.js"></script>
+    <script src="/js/bulk-assign.js"></script>
 <script src="/js/layout.js"></script>
 <script src="/js/notifications.js"></script>
 <script src="/js/sourcing.js"></script>

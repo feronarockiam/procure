@@ -63,7 +63,7 @@
 body {
   background: #f8fbfe;
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
@@ -1224,7 +1224,7 @@ select:focus {
 }
 
 .insight-card.success .insight-icon {
-  color: #10b981;
+  color: var(--success);
   background: rgba(16, 185, 129, 0.05);
 }
 
@@ -2336,10 +2336,7 @@ a,
 
 .mobile-nav-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   opacity: 0;
   pointer-events: none;
@@ -2464,10 +2461,10 @@ a,
 
   /* Modals - Full Screen on Mobile */
   .modal-content {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: 100vw !important;
-    max-height: 100vh !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
     margin: 0 !important;
     border-radius: 0 !important;
     overflow-y: auto;
@@ -2754,3 +2751,263 @@ a,
     padding: 0.75rem;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Responsive layer
+   Built for laptops that scale their display: Windows at 125–150% gives a page only about
+   1100–1366px wide, and a Windows scrollbar takes another 17px. Nothing here changes the look on
+   a big screen; it decides what gives way when there is less room.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Content that is too wide scrolls in its own box (or wraps). It is never silently cut off:
+      the page used to hide anything past its edge, so columns like Actions became unreachable. */
+body { overflow-x: auto; }
+.table-responsive,
+.glass-table-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+/* the card around a table must be allowed to shrink below the table's width (flex/grid children default to min-content) */
+.main-content, .card, .glass-table-wrap, .table-responsive { min-width: 0; }
+.main-content img, .main-content video { max-width: 100%; height: auto; }
+/* header rows: title on one side, actions on the other: wrap instead of squeezing */
+.flex-between { flex-wrap: wrap; gap: 0.75rem; }
+/* long names and emails break rather than push a column wider */
+.glass-table td, .table td { overflow-wrap: break-word; }
+
+/* 2. Laptop widths (up to 1400px, which covers 1366px screens and Windows at 125-150% scaling): the side menu becomes an icon rail that opens when you point at it or tab into it,
+      so the content gets the room (about 180px more) instead of a permanent 260px menu. */
+@media (min-width: 769px) and (max-width: 1400px) {
+  .sidebar { width: 80px; }
+  .sidebar:not(:hover):not(:focus-within) .logo-text,
+  .sidebar:not(:hover):not(:focus-within) .menu-label,
+  .sidebar:not(:hover):not(:focus-within) .nav-item span,
+  .sidebar:not(:hover):not(:focus-within) .user-info,
+  .sidebar:not(:hover):not(:focus-within) .toggle-btn { display: none; }
+  .sidebar:not(:hover):not(:focus-within) .sidebar-header { justify-content: center; padding: 1rem 0; }
+  .sidebar:not(:hover):not(:focus-within) .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+  .sidebar:not(:hover):not(:focus-within) .user-profile { justify-content: center; padding: 0.5rem 0; }
+  .sidebar:hover, .sidebar:focus-within { width: 260px; box-shadow: 10px 0 40px rgba(15, 23, 42, 0.14); }
+  .sidebar:hover .logo-text { display: flex; }
+  .sidebar:hover .menu-label { display: block; }
+  .sidebar:hover .nav-item span { display: inline; }
+  .sidebar:hover .user-info { display: block; }
+  .sidebar:hover .toggle-btn { display: flex; }
+  .main-content,
+  .sidebar.collapsed + .main-content { margin-left: 80px; width: calc(100% - 80px); padding: 1.5rem; }
+}
+
+/* 3. Phones and small tablets: the menu slides in from the left behind a button */
+#mobileMenuBtn { display: none; }
+@media (max-width: 768px) {
+  .sidebar {
+    display: flex;               /* the older rule hid it with nothing to bring it back; pages that must hide it still do so inline */
+    width: min(300px, 86%);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0s linear 0.25s;
+  }
+  .sidebar.mobile-open { transform: none; visibility: visible; transition: transform 0.25s ease; box-shadow: 12px 0 48px rgba(15, 23, 42, 0.25); }
+  #mobileMenuBtn {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; top: 0.75rem; left: 0.75rem; z-index: 998;
+    width: 44px; height: 44px; border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.95); border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); color: var(--text-primary); font-size: 1.4rem; cursor: pointer;
+  }
+  body.has-mobile-menu .main-content { padding-top: 4.5rem; }
+  /* the content no longer reserves room for a menu that isn't beside it (this margin used to push half the page off screen) */
+  .main-content,
+  .sidebar.collapsed + .main-content { margin-left: 0; width: 100%; padding-left: 1rem; padding-right: 1rem; }
+  /* rows of tabs scroll sideways instead of widening the page */
+  .main-section-tabs,
+  :has(> .sourcing-tab-btn) { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .main-section-tabs > *,
+  :has(> .sourcing-tab-btn) > * { flex-shrink: 0; white-space: nowrap; }
+}
+
+/* The row of summary cards: four across while there is room, then a tidy 2 x 2 (instead of 3 + 1 with one left over) */
+.dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; }
+@media (max-width: 899px) {
+  .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; margin: 1rem 0 1.75rem; }
+  .insight-card { padding: 1.1rem; gap: 0.75rem; border-radius: 1rem; }
+}
+
+/* Buttons in table rows: never wrap or clip their own text. When the screen is narrow (about 1180px and below, which is
+   where eight columns plus several buttons stop fitting) they keep their icon and give up the words; the name still
+   shows on hover and is read aloud. */
+.glass-table .btn, .table .btn { white-space: nowrap; }
+@media (max-width: 1180px) {
+  .glass-table td .btn-sm, .table td .btn-sm { font-size: 0; gap: 0; padding: 0.4rem 0.55rem; }
+  .glass-table td .btn-sm .ph, .table td .btn-sm .ph { font-size: 1rem; }
+}
+
+/* 4. Keyboard users can see where they are */
+:where(a, button, [role="button"], summary, select, input, textarea, .nav-item, .btn):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* 5. People who ask their computer for less motion get it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* 6. Row actions: destructive buttons stay quiet until you point at them (a red block on every row is loud and invites mis-clicks) */
+.btn-danger.btn-sm { background: #fff; color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: none; }
+.btn-danger.btn-sm:hover:not(:disabled) { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* 7. A list that failed to load says so and offers a way forward */
+.load-error { text-align: center; padding: 2.5rem 1.5rem; color: var(--text-secondary); }
+.load-error i { font-size: 2.25rem; color: var(--warning); display: block; margin-bottom: 0.75rem; }
+.load-error b { display: block; color: var(--text-primary); margin-bottom: 0.25rem; }
+.load-error p { margin: 0 0 1rem; font-size: 0.875rem; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Theme: colours that can be read, and calmer states
+   The old greys and the sky blue were 2.5 to 3 times lighter than the readable minimum (a contrast ratio of 4.5 : 1
+   for ordinary text): subtitles, dates and labels were washed out, and white text on the blue buttons was hard to
+   read. Same hues, deeper values. Every pairing below is checked by tests/ui.test.js.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+:root {
+  --primary: #1b72b3;
+  --primary-dark: #145a8c;
+  --primary-light: #E8F3FB;
+  --info: #1b72b3;
+  --danger: #d91d1d;
+  --success: #0b7e58;
+  --accent: #0b7e58;
+  --accent-dark: #086345;
+  --warning-text: #996206;          /* --warning stays the bright amber for icons and fills; this is amber you can read as text */
+  --text-secondary: #475569;
+  --text-muted: #666f7f;
+  --shadow-glow: 0 0 20px rgba(27, 114, 179, 0.15);
+}
+.badge-unsuccessful { color: #b91c1c; }
+::placeholder { color: var(--text-muted); opacity: 1; }
+
+/* Figures line up in columns (prices, quantities, counts) */
+.glass-table td, .table td, .insight-value, .stat-value { font-variant-numeric: tabular-nums; }
+
+/* Buttons feel the same everywhere: they press, and a disabled one looks disabled */
+.btn { transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease, border-color 0.15s ease, color 0.15s ease; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled, .btn[disabled] { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+
+/* Notifications stack (a new one no longer erases the last), stay long enough to read, and can be closed */
+.toast-stack {
+  position: fixed; top: 1.25rem; right: 1.25rem; z-index: 10000;
+  display: flex; flex-direction: column; gap: 0.6rem;
+  width: min(380px, calc(100% - 2rem)); pointer-events: none;
+}
+.toast-notification {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-left: 4px solid var(--toast-color, var(--primary));
+  color: var(--text-primary);
+  padding: 0.8rem 0.7rem 0.8rem 1rem; border-radius: 0.75rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-size: 0.875rem; font-weight: 500; line-height: 1.45;
+  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.toast-notification.leaving { animation: toastOut 0.25s ease-in forwards; }
+.toast-notification .toast-icon { font-size: 1.15rem; color: var(--toast-color, var(--primary)); flex-shrink: 0; margin-top: 0.05rem; }
+.toast-notification .toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-notification .toast-close { background: none; border: 0; color: var(--text-muted); cursor: pointer; padding: 0.15rem; border-radius: 0.4rem; font-size: 1rem; line-height: 1; flex-shrink: 0; }
+.toast-notification .toast-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(1rem) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(1rem); } }
+@media (max-width: 768px) { .toast-stack { top: auto; bottom: 1rem; left: 1rem; right: 1rem; width: auto; } }
+
+/* Lists show the shape of what is coming while they load, instead of a lone spinner */
+.skeleton { position: relative; overflow: hidden; background: #e6edf4; border-radius: 0.5rem; }
+.skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); animation: shimmer 1.4s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+.skeleton-card {
+  display: grid; grid-template-columns: 1.2fr 1.4fr 0.5fr 1fr; gap: 1.5rem; align-items: center;
+  background: rgba(255, 255, 255, 0.88); border: 1px solid rgba(255, 255, 255, 0.7); border-radius: 1rem;
+  padding: 1.1rem 1.25rem; margin-bottom: 0.9rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+.skeleton-line { height: 0.8rem; }
+.skeleton-line.short { width: 55%; margin-bottom: 0.45rem; }
+.skeleton-line.tall { height: 1.05rem; }
+@media (max-width: 768px) { .skeleton-card { grid-template-columns: 1fr 1fr; gap: 0.9rem; } }
+@media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }
+
+/* ── Pick several items and act on them at once (public/js/bulk-assign.js) ── */
+.bulk-pick, .bulk-pick-all { width: 1.05rem; height: 1.05rem; margin: 0 0.45rem 0 0; accent-color: var(--primary); cursor: pointer; flex-shrink: 0; vertical-align: middle; }
+.bulk-bar { position: fixed; left: 50%; bottom: 1.25rem; transform: translateX(-50%); z-index: 400; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+    justify-content: center; max-width: calc(100vw - 2rem); padding: 0.65rem 1rem; border-radius: 0.9rem; background: #0f172a; color: #fff;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35); }
+.bulk-bar[hidden] { display: none; }
+.bulk-bar .bulk-count { font-size: 0.85rem; margin-right: 0.25rem; }
+.bulk-bar .bulk-assign { display: inline-flex; gap: 0.4rem; align-items: center; }
+.bulk-bar select { font: inherit; font-size: 0.8rem; padding: 0.35rem 0.5rem; border-radius: 0.45rem; border: 1px solid var(--border); background: #fff; color: var(--text-primary); max-width: 12rem; }
+.bulk-bar .btn-secondary { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+body.has-bulk-bar .main-content { padding-bottom: 5rem; } /* the bar never covers the last row */
+
+/* ── "Needs you today" (public/js/todo.js) ─────────────────────────────────── */
+.todo-panel { margin: 0 0 1.5rem; }
+.todo-panel:empty { display: none; }
+.todo-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin: 0 0 0.6rem; }
+.todo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; }
+.todo-card { display: flex; align-items: center; gap: 0.85rem; padding: 0.8rem 1rem; border-radius: 0.9rem; text-decoration: none; color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.92); border: 1px solid var(--border-light, #e2e8f0); border-left-width: 4px; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+    transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.todo-card:hover, .todo-card:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1); outline: none; }
+.todo-card:focus-visible { box-shadow: 0 0 0 3px rgba(27, 114, 179, 0.35); }
+.todo-count { flex-shrink: 0; min-width: 2.4rem; height: 2.4rem; padding: 0 0.4rem; border-radius: 0.7rem; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 800; }
+.todo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.todo-text b { font-size: 0.88rem; font-weight: 600; }
+.todo-text small { font-size: 0.75rem; color: var(--text-secondary); }
+.todo-card > .ph-arrow-right { color: var(--text-muted); flex-shrink: 0; }
+.todo-card.tone-warn { border-left-color: #d97706; } .todo-card.tone-warn .todo-count { background: #fef3c7; color: #92400e; }
+.todo-card.tone-danger { border-left-color: #dc2626; } .todo-card.tone-danger .todo-count { background: #fee2e2; color: #991b1b; }
+.todo-card.tone-info { border-left-color: #1b72b3; } .todo-card.tone-info .todo-count { background: #dbeafe; color: #1e40af; }
+.todo-card.tone-success { border-left-color: #0b7e58; } .todo-card.tone-success .todo-count { background: #d1fae5; color: #065f46; }
+.todo-clear { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; border-radius: 0.9rem; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; font-size: 0.88rem; font-weight: 500; }
+.todo-clear .ph-check-circle { font-size: 1.2rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (max-width: 600px) { .todo-grid { grid-template-columns: 1fr; } }
+
+/* ── Admin dashboard: what needs attention, clickable stats ─────────────────── */
+.attention-row { display: flex; gap: 0.9rem; padding: 0.8rem 0; border-bottom: 1px solid var(--border-light); }
+.attention-row:last-of-type { border-bottom: none; }
+.attention-icon { flex-shrink: 0; width: 2.4rem; height: 2.4rem; border-radius: 0.65rem; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+.attention-row.tone-danger .attention-icon { background: #fee2e2; color: #991b1b; }
+.attention-row.tone-warn .attention-icon { background: #fef3c7; color: #92400e; }
+.attention-row.tone-success .attention-icon { background: #d1fae5; color: #065f46; }
+.attention-title { font-weight: 600; font-size: 0.9rem; line-height: 1.35; }
+.attention-detail { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin-top: 0.15rem; }
+.attention-link { color: var(--primary); font-weight: 600; text-decoration: none; }
+.attention-link:hover { text-decoration: underline; }
+.attention-snapshot { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px dashed var(--border); font-size: 0.8rem; color: var(--text-secondary); }
+a.stat-link { cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+a.stat-link:hover, a.stat-link:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1); outline: none; }
+a.stat-link:focus-visible { box-shadow: 0 0 0 3px rgba(27, 114, 179, 0.35); }
+
+/* Filter chips: how many each one would show */
+.filter-chip .chip-count { display: inline-block; min-width: 1.25rem; margin-left: 0.3rem; padding: 0 0.4rem; border-radius: 999px; background: rgba(15, 23, 42, 0.08); color: var(--text-secondary); font-size: 0.7rem; font-weight: 700; text-align: center; line-height: 1.35rem; }
+.filter-chip.active .chip-count { background: rgba(255, 255, 255, 0.75); color: var(--primary-dark, #14578a); }
+
+/* A notice with a button (e.g. "Undo") */
+.toast-notification .toast-action { margin-left: 0.5rem; padding: 0.25rem 0.7rem; border-radius: 0.5rem; border: 1px solid currentColor; background: transparent; color: var(--primary); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.toast-notification .toast-action:hover, .toast-notification .toast-action:focus-visible { background: var(--primary); color: #fff; outline: none; }
+
+/* The hello under each main page title */
+.page-greeting { font-size: 1rem; margin: 0.15rem 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.6rem; }
+.page-greeting .hello { font-weight: 600; color: var(--text-primary); }
+.page-greeting .hello-sub { color: var(--text-secondary); font-size: 0.92rem; }
+
+/* Moving to another screen: a thin bar, and the old page fades a little */
+.nav-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 2000; background: linear-gradient(90deg, #3b9fd9, #1b72b3); box-shadow: 0 0 8px rgba(27, 114, 179, 0.5); pointer-events: none; opacity: 0; }
+.nav-progress.running { opacity: 1; width: 85%; transition: width 6s cubic-bezier(0.1, 0.8, 0.2, 1); }
+.nav-progress.done { opacity: 0; width: 100%; transition: width 0.2s, opacity 0.4s 0.2s; }
+body.is-leaving .main-content { opacity: 0.6; transition: opacity 0.2s; }
+@media (prefers-reduced-motion: reduce) { .nav-progress.running { transition: none; } body.is-leaving .main-content { transition: none; } }
+body.access-denied .main-content, body.access-denied .sidebar { visibility: hidden; }

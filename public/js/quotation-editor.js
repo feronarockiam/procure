@@ -102,7 +102,7 @@ function renderWYSIWYGEditor() {
                         <img src="/images/logo.png" alt="Logo" onerror="this.style.display='none'">
                     </div>
                     <div class="company-details">
-                        <div class="company-name">${data.company.name}</div>
+                        <div class="company-name">${escapeHtml(data.company.name)}</div>
                         <div class="company-info">${data.company.address1}</div>
                         <div class="company-info">${data.company.address2}</div>
                         <div class="company-info">${data.company.address3}</div>
@@ -193,7 +193,7 @@ function renderWYSIWYGEditor() {
                     </div>
                     <div class="footer-section">
                         <div class="footer-title">Notes</div>
-                        <textarea class="footer-textarea" data-field="notes" rows="2">${data.notes}</textarea>
+                        <textarea class="footer-textarea" data-field="notes" rows="2">${escapeHtml(data.notes)}</textarea>
                     </div>
                     <div class="footer-section">
                         <div class="footer-title">Terms & Conditions</div>
@@ -220,7 +220,7 @@ function renderWYSIWYGEditor() {
                         </div>
                     </div>
                     <div class="signature-section">
-                        <div class="signature-company">For ${data.company.name}</div>
+                        <div class="signature-company">For ${escapeHtml(data.company.name)}</div>
                         <div class="signature-image">
                             <img src="/images/signature.png" alt="Signature" onerror="this.style.display='none'">
                         </div>
@@ -243,13 +243,13 @@ function renderItemRows(items) {
         <tr data-index="${index}">
             <td>${index + 1}</td>
             <td>
-                <div class="editable" contenteditable="true" data-field="description" data-index="${index}">${item.description}</div>
+                <div class="editable" contenteditable="true" data-field="description" data-index="${index}">${escapeHtml(item.description)}</div>
             </td>
             <td>
-                <div class="editable" contenteditable="true" data-field="specification" data-index="${index}">${item.specification}</div>
+                <div class="editable" contenteditable="true" data-field="specification" data-index="${index}">${escapeHtml(item.specification)}</div>
             </td>
             <td>
-                <div class="editable" contenteditable="true" data-field="hsnCode" data-index="${index}">${item.hsnCode}</div>
+                <div class="editable" contenteditable="true" data-field="hsnCode" data-index="${index}">${escapeHtml(item.hsnCode)}</div>
             </td>
             <td>
                 <input type="number" class="item-input" data-field="quantity" data-index="${index}" value="${item.quantity}" min="0" step="0.01">

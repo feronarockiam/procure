@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     loadNotifications();
-    // Poll every 30 seconds
-    setInterval(loadNotifications, 30000);
+    // Poll every 30 seconds, but not while the tab is hidden; catch up the moment it is shown again
+    setInterval(() => { if (!document.hidden) loadNotifications(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadNotifications(); });
 });
 
 async function loadNotifications() {
@@ -42,13 +43,13 @@ function renderNotifications(notifications) {
     }
 
     list.innerHTML = notifications.map(n => `
-        <div class="notification-item ${n.isRead ? 'read' : 'unread'}" onclick="handleNotificationClick('${n._id}', '${n.link}', '${n.message.replace(/'/g, "\\'")}')">
+        <div class="notification-item ${n.isRead ? 'read' : 'unread'}" onclick="handleNotificationClick('${n._id}', ${jsArg(n.link)}, ${jsArg(n.message)})">
             <div class="flex gap-4">
                 <div class="notification-icon ${n.type}" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-hover); color: var(--${n.type || 'primary'});">
                     <i class="ph ph-${getIconForType(n.type)}" style="font-size: 1.25rem;"></i>
                 </div>
                 <div style="flex: 1;">
-                    <div class="notification-message">${n.message}</div>
+                    <div class="notification-message">${escapeHtml(n.message)}</div>
                     <div class="notification-time" style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem;">
                         <i class="ph ph-clock"></i> ${formatTimeAgo(n.createdAt)}
                     </div>

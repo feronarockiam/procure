@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { Enquiry, EnquiryItem, Product, Customer, User } = require('../db');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { handleRouteError } = require('../middleware/errors');
+const { isValidId, escapeRegex, toPositive } = require('../middleware/validate');
+const { createEnquiryWithNumber } = require('../utils/enquiryNumber');
+const { usersWithPermission } = require('../utils/access');
+
+const MAX_ROWS = 2000;
+// Excel cells can arrive as numbers/booleans/null; treat everything as trimmed text
+const str = (value) => (value === undefined || value === null ? '' : String(value).trim());
 
 /**
  * Bulk Enquiry Routes
@@ -58,17 +66,22 @@ router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk
         if (!rows || !Array.isArray(rows)) {
             return res.status(400).json({ error: 'Invalid request format' });
         }
+        if (rows.length > MAX_ROWS) {
+            return res.status(400).json({ error: `Too many rows (max ${MAX_ROWS} per upload)` });
+        }
 
         // Fetch all products, customers, and sourcing users
         const [products, customers, sourcingUsers] = await Promise.all([
             Product.find({}),
             Customer.find({}),
-            User.find({ role: 'sourcing' })
+            // everyone whose role can enter vendor prices (the old check looked at a legacy word on the user)
+            usersWithPermission('purchase_price.add', { select: '_id name', populate: 'name' })
         ]);
 
         const validated = [];
 
-        for (const row of rows) {
+        for (const rawRow of rows) {
+            const row = rawRow && typeof rawRow === 'object' ? rawRow : {};
             const validatedRow = {
                 originalRow: row,
                 customer: null,
@@ -80,10 +93,10 @@ router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk
             };
 
             // Validate customer
-            if (!row.customer || !row.customer.trim()) {
+            if (!str(row.customer)) {
                 validatedRow.errors.push('Customer name is required');
             } else {
-                const customerName = row.customer.trim();
+                const customerName = str(row.customer);
                 const matchedCustomer = customers.find(c =>
                     c.name.toLowerCase() === customerName.toLowerCase()
                 );
@@ -105,10 +118,10 @@ router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk
             }
 
             // Validate and match product
-            if (!row.materialName || !row.materialName.trim()) {
+            if (!str(row.materialName)) {
                 validatedRow.errors.push('Material name is required');
             } else {
-                const materialName = row.materialName.trim();
+                const materialName = str(row.materialName);
 
                 // Try exact match first
                 let matchedProduct = products.find(p =>
@@ -171,15 +184,16 @@ router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk
             }
 
             // Validate quantity
-            if (!row.quantity || isNaN(parseFloat(row.quantity)) || parseFloat(row.quantity) <= 0) {
+            const quantity = toPositive(row.quantity);
+            if (Number.isNaN(quantity)) {
                 validatedRow.errors.push('Valid quantity is required');
             } else {
-                validatedRow.quantity = parseFloat(row.quantity);
+                validatedRow.quantity = quantity;
             }
 
             // Validate assignee (optional)
-            if (row.assignee && row.assignee.trim()) {
-                const assigneeName = row.assignee.trim();
+            if (str(row.assignee)) {
+                const assigneeName = str(row.assignee);
                 const matchedUser = sourcingUsers.find(u =>
                     u.name.toLowerCase() === assigneeName.toLowerCase()
                 );
@@ -205,8 +219,7 @@ router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk
         res.json({ validated });
 
     } catch (error) {
-        console.error('Bulk validate error:', error);
-        res.status(500).json({ error: 'Server error during validation' });
+        handleRouteError(res, error, 'bulk validate');
     }
 });
 
@@ -216,36 +229,63 @@ router.post('/bulk/validate', authenticateToken, requirePermission('enquiry.bulk
  */
 router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_create'), async (req, res) => {
     try {
-        const { enquiries, userId } = req.body;
+        const { enquiries } = req.body;
 
         if (!enquiries || !Array.isArray(enquiries)) {
             return res.status(400).json({ error: 'Invalid request format' });
         }
-
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
+        if (enquiries.length > MAX_ROWS) {
+            return res.status(400).json({ error: `Too many enquiries (max ${MAX_ROWS} per upload)` });
         }
+
+        // The creator is always the logged-in user. This used to trust a userId from the request body,
+        // so any bulk-upload user could create enquiries in someone else's name.
+        const createdBy = req.user.id;
 
         const created = [];
         const failed = [];
+        const purchaseIds = new Set((await usersWithPermission('purchase_price.add', { select: '_id', populate: 'name' })).map(u => String(u._id)));
 
         for (const enq of enquiries) {
+            const label = str(enq && enq.customerName) || 'Unknown';
             try {
+                if (!enq || !Array.isArray(enq.items) || enq.items.length === 0) {
+                    failed.push({ customer: label, reason: 'No items' });
+                    continue;
+                }
+
+                const items = [];
+                let badItem = null;
+                for (const item of enq.items) {
+                    const quantity = toPositive(item && item.quantity);
+                    if (!item || !isValidId(String(item.productId)) || Number.isNaN(quantity)) { badItem = item; break; }
+                    items.push({ productId: String(item.productId), quantity });
+                }
+                if (badItem !== null) {
+                    failed.push({ customer: label, reason: 'Every item needs a valid product and a quantity above 0' });
+                    continue;
+                }
+
                 let customerId = enq.customerId;
+                if (customerId && !isValidId(String(customerId))) {
+                    failed.push({ customer: label, reason: 'Invalid customer' });
+                    continue;
+                }
 
                 // Create customer if doesn't exist
-                if (!customerId && enq.customerName) {
-                    // Check if customer already exists (case-insensitive)
+                if (!customerId && str(enq.customerName)) {
+                    const customerName = str(enq.customerName);
+                    // Case-insensitive exact match. The name is escaped: a name like "A (B)" used to break the regex.
                     const existingCustomer = await Customer.findOne({
-                        name: { $regex: new RegExp(`^${enq.customerName.trim()}$`, 'i') }
+                        name: new RegExp(`^${escapeRegex(customerName)}$`, 'i')
                     });
 
                     if (existingCustomer) {
                         customerId = existingCustomer._id;
                     } else {
                         const newCustomer = await Customer.create({
-                            name: enq.customerName.trim(),
-                            email: `${enq.customerName.toLowerCase().replace(/[^a-z0-9]/g, '')}@temp.com`,
+                            name: customerName,
+                            email: `${customerName.toLowerCase().replace(/[^a-z0-9]/g, '')}@temp.com`,
                             phone: '0000000000',
                             address: 'To be updated'
                         });
@@ -254,48 +294,43 @@ router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_c
                 }
 
                 if (!customerId) {
-                    failed.push({
-                        customer: enq.customerName,
-                        reason: 'Customer ID missing'
-                    });
+                    failed.push({ customer: label, reason: 'Customer ID missing' });
                     continue;
                 }
 
-                // Create enquiry with proper counter
-                const counter = await Enquiry.countDocuments() + 1;
-                const enquiryNumber = `ENQ-${String(counter).padStart(4, '0')}`;
+                const assignedTo = enq.assignedTo && isValidId(String(enq.assignedTo)) && purchaseIds.has(String(enq.assignedTo))
+                    ? String(enq.assignedTo)
+                    : null;
 
-                const enquiryData = {
-                    enquiryNumber,
+                // Same numbering as single creation (ENQ-YYYYMMDD-NNN); the old count-based number
+                // collided with existing enquiries as soon as one had been deleted.
+                const newEnquiry = await createEnquiryWithNumber({
                     customerId,
-                    createdBy: userId, // Use userId from request body
-                    status: 'active'  // Changed from 'pending' to 'active'
-                };
+                    createdBy,
+                    status: 'active',
+                    stage: assignedTo ? 'open' : 'new',
+                    ...(assignedTo ? { assignedTo } : {}),
+                });
 
-                if (enq.assignedTo) {
-                    enquiryData.assignedTo = enq.assignedTo;
+                try {
+                    await EnquiryItem.insertMany(items.map(item => ({
+                        enquiryId: newEnquiry._id,
+                        productId: item.productId,
+                        quantity: item.quantity,
+                        // An enquiry given an assignee used to leave its items unassigned
+                        status: assignedTo ? 'assigned' : 'unassigned',
+                        ...(assignedTo ? { assignedTo } : {}),
+                    })));
+                } catch (err) {
+                    await Enquiry.findByIdAndDelete(newEnquiry._id).catch(() => {});
+                    throw err;
                 }
-
-                const newEnquiry = await Enquiry.create(enquiryData);
-
-                // Create enquiry items
-                const itemsToCreate = enq.items.map(item => ({
-                    enquiryId: newEnquiry._id,
-                    productId: item.productId,
-                    quantity: item.quantity,
-                    status: 'pending'
-                }));
-
-                await EnquiryItem.insertMany(itemsToCreate);
 
                 created.push(newEnquiry.enquiryNumber);
 
             } catch (error) {
                 console.error('Error creating enquiry:', error);
-                failed.push({
-                    customer: enq.customerName || 'Unknown',
-                    reason: error.message
-                });
+                failed.push({ customer: label, reason: error.message });
             }
         }
 
@@ -310,8 +345,7 @@ router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_c
         });
 
     } catch (error) {
-        console.error('Bulk create error:', error);
-        res.status(500).json({ error: 'Server error during creation' });
+        handleRouteError(res, error, 'bulk create');
     }
 });
 

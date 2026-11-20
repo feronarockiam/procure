@@ -163,6 +163,7 @@ async function processExcelFile() {
 // Read Excel file using SheetJS
 function readExcelFile(file) {
     return new Promise((resolve, reject) => {
+        try { requireLibs(['xlsx']); } catch (error) { reject(error); return; }
         const reader = new FileReader();
 
         reader.onload = (e) => {
@@ -458,7 +459,7 @@ function renderItemRow(item, enqIndex, itemIndex) {
                 class="form-select"
                 style="width: 100%; max-width: 300px;"
                 onchange="handleProductSelection(${enqIndex}, ${itemIndex}, this.value, this)" 
-                data-uploaded-name="${item.materialName}"
+                data-uploaded-name="${escapeHtml(item.materialName)}"
                 data-enq-index="${enqIndex}"
                 data-item-index="${itemIndex}">
                 
@@ -466,9 +467,9 @@ function renderItemRow(item, enqIndex, itemIndex) {
                 <option value="__NEW_PRODUCT__" style="font-weight: bold; color: var(--primary);">+ New Product</option>
                 
                 <optgroup label="Best Matches">
-                    ${item.productMatch ? `<option value="${item.productMatch._id}" selected>✓ ${item.productMatch.materialName} (${Math.round(item.confidence * 100)}% match)</option>` : ''}
+                    ${item.productMatch ? `<option value="${item.productMatch._id}" selected>✓ ${escapeHtml(item.productMatch.materialName)} (${Math.round(item.confidence * 100)}% match)</option>` : ''}
                     ${(item.suggestions || []).map(s => `
-                        <option value="${s.product._id}">${s.product.materialName} (${Math.round(s.similarity * 100)}% match)</option>
+                        <option value="${s.product._id}">${escapeHtml(s.product.materialName)} (${Math.round(s.similarity * 100)}% match)</option>
                     `).join('')}
                 </optgroup>
 
@@ -479,17 +480,17 @@ function renderItemRow(item, enqIndex, itemIndex) {
         const isSuggested = (item.suggestions || []).some(s => s.product._id === p._id);
         if (isSelected || isSuggested) return '';
 
-        return `<option value="${p._id}">${p.materialName}</option>`;
+        return `<option value="${p._id}">${escapeHtml(p.materialName)}</option>`;
     }).join('')}
                 </optgroup>
             </select>
-            ${item.productMatch ? `<div class="text-muted mt-1" style="font-size: 0.75rem;">Selected: ${item.productMatch.materialName} (${item.productMatch.uom})</div>` : ''}
+            ${item.productMatch ? `<div class="text-muted mt-1" style="font-size: 0.75rem;">Selected: ${escapeHtml(item.productMatch.materialName)} (${escapeHtml(item.productMatch.uom)})</div>` : ''}
         </div>
     `;
 
     return `
         <tr>
-            <td>${item.materialName}</td>
+            <td>${escapeHtml(item.materialName)}</td>
             <td>${matchedProductHtml}</td>
             <td>${item.quantity}</td>
             <td>${matchBadge}</td>
@@ -811,6 +812,7 @@ async function confirmBulkCreate() {
 
 // Download template
 function downloadTemplate() {
+    try { requireLibs(['xlsx']); } catch (error) { showToast(error.message, 'error'); return; }
     const template = [
         ['EnquiryCustomer', 'Material Name', 'Qty', 'Sourcing Assignee'],
         ['ABC Corporation', 'Steel Rod 10mm', '100', 'John Doe'],

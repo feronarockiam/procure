@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity log – Precise Procure</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/premium-ui.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        .act-filters { display:flex; flex-wrap:wrap; gap:0.6rem; align-items:flex-end; margin-bottom:1.25rem; padding:0.9rem 1rem; border-radius:0.85rem;
+                       background:rgba(255,255,255,0.8); border:1px solid rgba(255,255,255,0.7); box-shadow:0 2px 10px rgba(0,0,0,0.04); }
+        .act-filters label { display:flex; flex-direction:column; gap:0.2rem; font-size:0.72rem; font-weight:600; color:var(--text-secondary); }
+        .act-filters input, .act-filters select { font:inherit; font-size:0.85rem; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:0.5rem; background:#fff; min-width:9rem; }
+        .act-filters .grow { flex:1 1 14rem; }
+        .act-day { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); margin:1.25rem 0 0.5rem; }
+        .act-list { list-style:none; margin:0; padding:0; background:rgba(255,255,255,0.88); border:1px solid rgba(255,255,255,0.7); border-radius:1rem; box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+        .act-row { display:flex; gap:0.8rem; align-items:flex-start; padding:0.75rem 1rem; border-bottom:1px solid var(--border-light); }
+        .act-row:last-child { border-bottom:none; }
+        .act-icon { flex-shrink:0; width:2rem; height:2rem; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--primary-light, rgba(59,159,217,0.12)); color:var(--primary); }
+        .act-icon.warn { background:#fef2f2; color:#b91c1c; }
+        .act-text { flex:1; min-width:0; font-size:0.88rem; line-height:1.45; overflow-wrap:break-word; }
+        .act-text small { display:block; color:var(--text-muted); font-size:0.75rem; margin-top:0.1rem; }
+        .act-time { flex-shrink:0; font-size:0.75rem; color:var(--text-muted); white-space:nowrap; }
+        .empty-state { text-align:center; padding:3rem 2rem; color:var(--text-muted); }
+        .empty-state i { font-size:3rem; opacity:0.4; margin-bottom:1rem; display:block; }
+        .act-more { text-align:center; margin:1.25rem 0; }
+    </style></head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="flex items-center gap-2 logo-text">
+                    <i class="ph ph-gauge" style="font-size:1.5rem;color:var(--primary)"></i>
+                    <span>Precise Procure</span>
+                </div>
+                <button class="toggle-btn" onclick="toggleSidebar()"><i class="ph ph-list"></i></button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin.html" class="nav-item">
+                    <i class="ph ph-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Master Data</div>
+                <a href="/masters.html?type=materials" class="nav-item">
+                    <i class="ph ph-package"></i>
+                    <span>Materials</span>
+                </a>
+                <a href="/masters.html?type=employees" class="nav-item">
+                    <i class="ph ph-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="/masters.html?type=customers" class="nav-item">
+                    <i class="ph ph-user-circle"></i>
+                    <span>Customers</span>
+                </a>
+                <a href="/masters.html?type=vendors" class="nav-item">
+                    <i class="ph ph-storefront"></i>
+                    <span>Vendors</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Enquiry Management</div>
+                <a href="/sales.html" class="nav-item">
+                    <i class="ph ph-shopping-cart-simple"></i>
+                    <span>Sales &amp; Enquiries</span>
+                </a>
+                <a href="/sourcing.html" class="nav-item">
+                    <i class="ph ph-package"></i>
+                    <span>Sourcing / Purchase</span>
+                </a>
+                <a href="/key-accounts.html" class="nav-item">
+                    <i class="ph ph-handshake"></i>
+                    <span>Key Accounts</span>
+                </a>
+                <div style="height: 1px; background: var(--border); margin: 0.5rem 0;"></div>
+                <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
+                <a href="/role-management.html" class="nav-item">
+                    <i class="ph ph-shield-check"></i>
+                    <span>Roles &amp; Access</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div style="width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0">
+                        <i class="ph ph-user"></i>
+                    </div>
+                    <div class="user-info" style="flex:1;overflow:hidden">
+                        <div style="font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="navUserName">Admin</div>
+                        <div style="font-size:0.75rem;color:var(--text-secondary)" id="navUserRole">Administrator</div>
+                    </div>
+                    <button onclick="logout()" class="toggle-btn" title="Logout"><i class="ph ph-sign-out"></i></button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header mb-4" style="background:transparent;border:none;padding:0;box-shadow:none">
+                <div class="flex-between" style="flex-wrap:wrap;gap:1rem">
+                    <div>
+                        <h1 style="font-size:1.75rem;display:flex;align-items:center;gap:0.6rem">
+                            <i class="ph ph-clock-counter-clockwise" style="color:var(--primary)"></i>
+                            Activity log
+                        </h1>
+                        <p class="text-muted">Who did what, and when. Newest first.</p>
+                    </div>
+                    <button class="btn btn-secondary" id="exportBtn" type="button"><i class="ph ph-download-simple"></i> Download as spreadsheet</button>
+                </div>
+            </div>
+
+            <form class="act-filters" id="filters" onsubmit="return false">
+                <label class="grow">Search<input type="search" id="fQ" placeholder="A person, enquiry number, customer…" maxlength="60"></label>
+                <label>Kind<select id="fType">
+                    <option value="">Everything</option>
+                    <option value="enquiries">Enquiries and items</option>
+                    <option value="prices">Vendor prices</option>
+                    <option value="masters">Customers, vendors, materials</option>
+                    <option value="people">Employees and roles</option>
+                    <option value="signins">Sign-ins and passwords</option>
+                </select></label>
+                <label>Person<select id="fActor"><option value="">Anyone</option></select></label>
+                <label>From<input type="date" id="fFrom"></label>
+                <label>To<input type="date" id="fTo"></label>
+                <button type="button" class="btn btn-secondary btn-sm" id="clearBtn">Clear</button>
+            </form>
+
+            <div id="actBody" data-skeleton="6"></div>
+            <div class="act-more" id="actMore" style="display:none"><button class="btn btn-secondary" id="moreBtn" type="button">Show older activity</button></div>
+        </main>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/layout.js"></script>
+    <script src="/js/activity.js"></script>
+</body>
+</html>

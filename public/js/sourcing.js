@@ -17,25 +17,31 @@ let tabStatusFilters = new Set();
 document.addEventListener('DOMContentLoaded', async () => {
   const user = checkAuth();
   if (!user) return;
-  if (!hasAnyPermission(['purchase_price.add', 'enquiry.view.assigned', 'enquiry.view.all', 'enquiry.self_assign'])) {
-    showToast('You do not have permission to access the Sourcing dashboard', 'error');
-    setTimeout(() => window.location.href = '/', 1500);
-    return;
-  }
+  if (!requirePageAccess('/sourcing.html')) return;
 
   // Store current user id for UI filtering
   window.currentUserId = user.id;
+
+  // Pick several queue items and claim or assign them in one step
+  BulkAssign.init({
+    people: () => window._purchaseUsers || [],
+    canClaim: () => hasPermission('enquiry.self_assign'),
+    canAssign: () => hasPermission('enquiry.assign'),
+    afterChange: async (result, self) => { await loadEnquiries(); if (self) switchTab('my_work'); },
+  });
 
   await Promise.all([loadEnquiries(), loadPurchaseUsers()]);
 });
 
 async function loadEnquiries() {
   try {
+    // The vendor list is only for entering prices (a role that can do that always has it)
     [enquiries, vendors] = await Promise.all([
       apiCall('/enquiries'),
-      apiCall('/vendors')
+      apiCall('/vendors', { silent: true }).catch(() => [])
     ]);
     renderInsights();
+    if (typeof refreshTodo === 'function') refreshTodo();
     const tog = document.getElementById('viewToggleContainer');
     if (tog) tog.innerHTML = getViewToggleHTML(viewMode);
     // Show My Team tab for managers (anyone with enquiry.assign)
@@ -48,6 +54,7 @@ async function loadEnquiries() {
   } catch (error) {
     console.error('Load enquiries error:', error);
     showToast('Failed to load enquiries', 'error');
+    showLoadError(document.getElementById('enquiriesList'), error.message, loadEnquiries);
   }
 }
 
@@ -148,7 +155,7 @@ function getViewToggleHTML(mode) {
         style="padding:0.4rem 0.9rem;border:none;border-radius:0.4rem;font-size:0.8rem;font-weight:600;cursor:pointer;
                display:flex;align-items:center;gap:0.4rem;transition:all 0.15s;
                ${mode === m.id ? 'background:white;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,0.08)' : 'background:transparent;color:var(--text-secondary)'}">
-        <i class="ph ${m.icon}"></i> ${m.label}
+        <i class="ph ${m.icon}"></i> ${escapeHtml(m.label)}
       </button>`).join('')}
   </div>`;
 }
@@ -167,6 +174,12 @@ function switchTab(tab) {
 }
 
 function renderCurrentTab() {
+  renderCurrentTabInner();
+  BulkAssign.sync();
+  updateTabChipCounts();
+}
+
+function renderCurrentTabInner() {
   updateTabBadges();
   if (currentTab === 'team') {
     renderTeamOverviewTab();
@@ -212,15 +225,16 @@ function renderNewQueueMaterialTab() {
     const uom = item.productId?.uom || '';
     return `<tr>
       <td><span style="font-family:monospace;font-size:0.82rem;color:var(--primary)">${enquiry.enquiryNumber}</span></td>
-      <td>${enquiry.customerId?.name || '—'}</td>
-      <td>${item.quantity} ${uom}</td>
+      <td>${escapeHtml(enquiry.customerId?.name) || '—'}</td>
+      <td>${item.quantity} ${escapeHtml(uom)}</td>
       <td style="font-size:0.8rem;color:var(--text-muted)">${formatDate(enquiry.createdAt)}</td>
       <td>
-        <div class="flex gap-1">
-          <button class="btn btn-primary btn-sm" onclick="claimItem('${enquiry._id}', '${item._id}')"><i class="ph ph-hand"></i> Claim</button>
+        <div class="flex gap-1" style="align-items:center">
+          ${BulkAssign.checkbox(enquiry._id, item._id)}
+          ${hasPermission('enquiry.self_assign') ? `<button class="btn btn-primary btn-sm" onclick="claimItem('${enquiry._id}', '${item._id}')"><i class="ph ph-hand"></i> Claim</button>` : ''}
           ${canAssign ? `<select class="assign-select-${item._id}" style="padding:0.3rem;border:1px solid var(--border);border-radius:0.4rem;font-size:0.78rem;max-width:120px">
             <option value="">Assign to…</option>
-            ${(window._purchaseUsers || []).map(u => `<option value="${u._id}">${u.name}</option>`).join('')}
+            ${(window._purchaseUsers || []).map(u => `<option value="${u._id}">${escapeHtml(u.name)}</option>`).join('')}
           </select>
           <button class="btn btn-secondary btn-sm" onclick="assignItemToUser('${enquiry._id}', '${item._id}', this)"><i class="ph ph-user-plus"></i></button>` : ''}
         </div>
@@ -262,11 +276,11 @@ function renderMyWorkMaterialTab() {
       const uom = item.productId?.uom || '';
       return `<tr style="border-left:3px solid #f59e0b">
         <td><span style="font-family:monospace;font-size:0.82rem;color:var(--primary)">${enquiry.enquiryNumber}</span></td>
-        <td>${enquiry.customerId?.name || '—'}</td>
-        <td>${item.quantity} ${uom}</td>
+        <td>${escapeHtml(enquiry.customerId?.name) || '—'}</td>
+        <td>${item.quantity} ${escapeHtml(uom)}</td>
         <td><div class="flex gap-1">
           <button class="btn btn-secondary btn-sm" onclick="openChat('${enquiry._id}', '${enquiry.enquiryNumber}')"><i class="ph ph-chat-text"></i></button>
-          <button class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" onclick="resolveQuery('${enquiry._id}', '${item._id}')"><i class="ph ph-check-circle"></i> Resolve</button>
+          ${hasPermission('query.send') ? `<button class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" onclick="resolveQuery('${enquiry._id}', '${item._id}')"><i class="ph ph-check-circle"></i> Resolve</button>` : ''}
         </div></td>
       </tr>`;
     }, ['Enquiry #', 'Customer', 'Qty', 'Actions']);
@@ -279,12 +293,12 @@ function renderMyWorkMaterialTab() {
       const uom = item.productId?.uom || '';
       return `<tr>
         <td><span style="font-family:monospace;font-size:0.82rem;color:var(--primary)">${enquiry.enquiryNumber}</span></td>
-        <td>${enquiry.customerId?.name || '—'}</td>
-        <td>${item.quantity} ${uom}</td>
+        <td>${escapeHtml(enquiry.customerId?.name) || '—'}</td>
+        <td>${item.quantity} ${escapeHtml(uom)}</td>
         <td>${getStatusBadge(item.status)}</td>
         <td><div class="flex gap-1 flex-wrap">
-          <button class="btn btn-success btn-sm" onclick="showQuotationModal('${item._id}')"><i class="ph ph-plus-circle"></i> Quote</button>
-          <button class="btn btn-secondary btn-sm" onclick="openRaiseQueryModal('${enquiry._id}', '${item._id}', '${enquiry.enquiryNumber}')"><i class="ph ph-question"></i> Raise Query</button>
+          ${hasPermission('purchase_price.add') ? `<button class="btn btn-success btn-sm" onclick="showQuotationModal('${item._id}')"><i class="ph ph-plus-circle"></i> Quote</button>` : ''}
+          ${hasPermission('query.send') ? `<button class="btn btn-secondary btn-sm" onclick="openRaiseQueryModal('${enquiry._id}', '${item._id}', '${enquiry.enquiryNumber}')"><i class="ph ph-question"></i> Raise Query</button>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="openChat('${enquiry._id}', '${enquiry.enquiryNumber}')"><i class="ph ph-chat-text"></i></button>
           <button class="btn btn-sm" style="background:var(--bg-hover);border:1px solid var(--border)" onclick="generateWhatsApp('${enquiry._id}')"><i class="ph ph-whatsapp-logo"></i></button>
         </div></td>
@@ -319,8 +333,8 @@ function renderDoneMaterialTab() {
     const uom = item.productId?.uom || '';
     return `<tr>
       <td><span style="font-family:monospace;font-size:0.82rem;color:var(--primary)">${enquiry.enquiryNumber}</span></td>
-      <td>${enquiry.customerId?.name || '—'}</td>
-      <td>${item.quantity} ${uom}</td>
+      <td>${escapeHtml(enquiry.customerId?.name) || '—'}</td>
+      <td>${item.quantity} ${escapeHtml(uom)}</td>
       <td>${getStatusBadge(item.status)}</td>
       <td>${['vendor_quoted', 'priced', 'sales_priced'].includes(item.status) ? `<button class="btn btn-secondary btn-sm" onclick="viewQuotes('${item._id}')"><i class="ph ph-clipboard-text"></i> Quotes</button>` : ''}</td>
     </tr>`;
@@ -336,20 +350,22 @@ function buildMaterialCards(entries, rowFn, columns) {
     const brand = prod?.brand || '';
     const spec = prod?.specification || '';
     const uom = prod?.uom || '';
-    const meta = [brand, spec].filter(Boolean).join(' · ');
+    const meta = [brand, spec].filter(Boolean).map(escapeHtml).join(' · ');
     const id = `mat-${currentTab}-${idx}`;
     const theads = columns.map(c => `<th>${c}</th>`).join('');
     const rows = group.entries.map(({ item, enquiry }) => rowFn(item, enquiry)).join('');
+    const selectAll = rows.includes('class="bulk-pick"') ? BulkAssign.allBox(id) : '';
     return `<div class="material-card" id="${id}">
       <div class="material-card-header" onclick="toggleMaterialCard('${id}')">
+        ${selectAll}
         <div class="material-icon"><i class="ph ph-cube"></i></div>
         <div>
-          <div class="material-name">${name}</div>
+          <div class="material-name">${escapeHtml(name)}</div>
           ${meta ? `<div class="material-meta-text">${meta}</div>` : ''}
         </div>
         <div class="material-stats">
           <span class="material-stat-chip">${group.entries.length} enquir${group.entries.length === 1 ? 'y' : 'ies'}</span>
-          <span class="material-stat-chip">${group.totalQty} ${uom}</span>
+          <span class="material-stat-chip">${group.totalQty} ${escapeHtml(uom)}</span>
         </div>
         <i class="ph ph-caret-down material-chevron"></i>
       </div>
@@ -379,18 +395,19 @@ function renderNewQueueItemsTab() {
       const uom = prod?.uom || '';
       rows.push(`<tr>
         <td>
-          <div class="mat-primary">${prod?.materialName || '—'}</div>
-          ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+          <div class="mat-primary">${escapeHtml(prod?.materialName) || '—'}</div>
+          ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
         </td>
         <td><span class="enq-ref">${enq.enquiryNumber}</span></td>
-        <td style="font-size:0.82rem">${enq.customerId?.name || '—'}</td>
-        <td style="white-space:nowrap">${item.quantity} ${uom}</td>
+        <td style="font-size:0.82rem">${escapeHtml(enq.customerId?.name) || '—'}</td>
+        <td style="white-space:nowrap">${item.quantity} ${escapeHtml(uom)}</td>
         <td style="font-size:0.78rem;color:var(--text-muted)">${formatDate(enq.createdAt)}</td>
-        <td><div class="flex gap-1">
-          <button class="btn btn-primary btn-sm" onclick="claimItem('${enq._id}', '${item._id}')"><i class="ph ph-hand"></i> Claim</button>
+        <td><div class="flex gap-1" style="align-items:center">
+          ${BulkAssign.checkbox(enq._id, item._id)}
+          ${hasPermission('enquiry.self_assign') ? `<button class="btn btn-primary btn-sm" onclick="claimItem('${enq._id}', '${item._id}')"><i class="ph ph-hand"></i> Claim</button>` : ''}
           ${canAssign ? `<select class="assign-select-${item._id}" style="padding:0.3rem;border:1px solid var(--border);border-radius:0.4rem;font-size:0.78rem;max-width:120px">
             <option value="">Assign to…</option>
-            ${(window._purchaseUsers || []).map(u => `<option value="${u._id}">${u.name}</option>`).join('')}
+            ${(window._purchaseUsers || []).map(u => `<option value="${u._id}">${escapeHtml(u.name)}</option>`).join('')}
           </select>
           <button class="btn btn-secondary btn-sm" onclick="assignItemToUser('${enq._id}', '${item._id}', this)"><i class="ph ph-user-plus"></i></button>` : ''}
         </div></td>
@@ -422,20 +439,20 @@ function renderMyWorkItemsTab() {
       const isWaiting = item.status === 'in_sales_query';
       rows.push(`<tr${isWaiting ? ' style="border-left:3px solid #f59e0b"' : ''}>
         <td>
-          <div class="mat-primary">${prod?.materialName || '—'}</div>
-          ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+          <div class="mat-primary">${escapeHtml(prod?.materialName) || '—'}</div>
+          ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
         </td>
         <td><span class="enq-ref">${enq.enquiryNumber}</span></td>
-        <td style="font-size:0.82rem">${enq.customerId?.name || '—'}</td>
-        <td style="white-space:nowrap">${item.quantity} ${uom}</td>
+        <td style="font-size:0.82rem">${escapeHtml(enq.customerId?.name) || '—'}</td>
+        <td style="white-space:nowrap">${item.quantity} ${escapeHtml(uom)}</td>
         <td>${getStatusBadge(item.status)}</td>
         <td><div class="flex gap-1 flex-wrap">
           ${isWaiting ? `
             <button class="btn btn-secondary btn-sm" onclick="openChat('${enq._id}', '${enq.enquiryNumber}')"><i class="ph ph-chat-text"></i> View Chat</button>
-            <button class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" onclick="resolveQuery('${enq._id}', '${item._id}')"><i class="ph ph-check-circle"></i> Resolve</button>
+            ${hasPermission('query.send') ? `<button class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" onclick="resolveQuery('${enq._id}', '${item._id}')"><i class="ph ph-check-circle"></i> Resolve</button>` : ''}
           ` : `
-            <button class="btn btn-success btn-sm" onclick="showQuotationModal('${item._id}')"><i class="ph ph-plus-circle"></i> Quote</button>
-            <button class="btn btn-secondary btn-sm" onclick="openRaiseQueryModal('${enq._id}', '${item._id}', '${enq.enquiryNumber}')"><i class="ph ph-question"></i> Raise Query</button>
+            ${hasPermission('purchase_price.add') ? `<button class="btn btn-success btn-sm" onclick="showQuotationModal('${item._id}')"><i class="ph ph-plus-circle"></i> Quote</button>` : ''}
+            ${hasPermission('query.send') ? `<button class="btn btn-secondary btn-sm" onclick="openRaiseQueryModal('${enq._id}', '${item._id}', '${enq.enquiryNumber}')"><i class="ph ph-question"></i> Raise Query</button>` : ''}
             <button class="btn btn-secondary btn-sm" onclick="openChat('${enq._id}', '${enq.enquiryNumber}')"><i class="ph ph-chat-text"></i></button>
             <button class="btn btn-sm" style="background:var(--bg-hover);border:1px solid var(--border)" onclick="generateWhatsApp('${enq._id}')"><i class="ph ph-whatsapp-logo"></i></button>
           `}
@@ -467,12 +484,12 @@ function renderDoneItemsTab() {
       const uom = prod?.uom || '';
       rows.push(`<tr>
         <td>
-          <div class="mat-primary">${prod?.materialName || '—'}</div>
-          ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+          <div class="mat-primary">${escapeHtml(prod?.materialName) || '—'}</div>
+          ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
         </td>
         <td><span class="enq-ref">${enq.enquiryNumber}</span></td>
-        <td style="font-size:0.82rem">${enq.customerId?.name || '—'}</td>
-        <td style="white-space:nowrap">${item.quantity} ${uom}</td>
+        <td style="font-size:0.82rem">${escapeHtml(enq.customerId?.name) || '—'}</td>
+        <td style="white-space:nowrap">${item.quantity} ${escapeHtml(uom)}</td>
         <td>${getStatusBadge(item.status)}</td>
         <td>${['vendor_quoted', 'priced', 'sales_priced'].includes(item.status) ? `<button class="btn btn-secondary btn-sm" onclick="viewQuotes('${item._id}')"><i class="ph ph-clipboard-text"></i> Quotes</button>` : ''}</td>
       </tr>`);
@@ -545,8 +562,9 @@ function renderNewQueueTab() {
       <div class="enquiry-accordion-card">
         <div class="enquiry-accordion-header" onclick="toggleEnquiryCard('${id}')">
           <div style="display:flex;align-items:center;gap:0.75rem;flex:1;min-width:0">
+            ${BulkAssign.allBox(id)}
             <span class="enq-number">${enq.enquiryNumber}</span>
-            <span style="font-size:0.85rem;color:var(--text-secondary)">${enq.customerId?.name || '—'}</span>
+            <span style="font-size:0.85rem;color:var(--text-secondary)">${escapeHtml(enq.customerId?.name) || '—'}</span>
           </div>
           <div style="display:flex;align-items:center;gap:0.6rem;flex-shrink:0">
             <span class="badge" style="background:var(--danger);color:white;font-size:0.7rem">${items.length} item${items.length !== 1 ? 's' : ''}</span>
@@ -564,15 +582,16 @@ function renderNewQueueTab() {
                 const prod = item.productId;
                 const uom = prod?.uom || '';
                 return `<tr>
-                  <td style="font-weight:600">${prod?.materialName || '—'}</td>
-                  <td style="color:var(--text-muted)">${[prod?.brand, prod?.specification].filter(Boolean).join(' · ') || '—'}</td>
-                  <td>${item.quantity} ${uom}</td>
-                  <td><div class="flex gap-1 flex-wrap">
-                    <button class="btn btn-primary btn-sm" onclick="claimItem('${enq._id}', '${item._id}')"><i class="ph ph-hand"></i> Claim</button>
+                  <td style="font-weight:600">${escapeHtml(prod?.materialName) || '—'}</td>
+                  <td style="color:var(--text-muted)">${[prod?.brand, prod?.specification].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</td>
+                  <td>${item.quantity} ${escapeHtml(uom)}</td>
+                  <td><div class="flex gap-1 flex-wrap" style="align-items:center">
+                    ${BulkAssign.checkbox(enq._id, item._id)}
+                    ${hasPermission('enquiry.self_assign') ? `<button class="btn btn-primary btn-sm" onclick="claimItem('${enq._id}', '${item._id}')"><i class="ph ph-hand"></i> Claim</button>` : ''}
                     ${canAssign ? `
                       <select id="assign-sel-${item._id}" style="padding:0.3rem;border:1px solid var(--border);border-radius:0.4rem;font-size:0.78rem;max-width:120px">
                         <option value="">Assign to…</option>
-                        ${(window._purchaseUsers || []).map(u => `<option value="${u._id}">${u.name}</option>`).join('')}
+                        ${(window._purchaseUsers || []).map(u => `<option value="${u._id}">${escapeHtml(u.name)}</option>`).join('')}
                       </select>
                       <button class="btn btn-secondary btn-sm" onclick="assignItemFromQueue('${enq._id}', '${item._id}')"><i class="ph ph-user-plus"></i></button>
                     ` : ''}
@@ -644,7 +663,7 @@ function toggleEnquiryCard(id) {
 // Load purchase users for manager assign dropdown (called after page init)
 async function loadPurchaseUsers() {
   try {
-    window._purchaseUsers = await apiCall('/users/by-category?category=purchase');
+    window._purchaseUsers = await apiCall('/users/sourcing');
   } catch (e) {
     window._purchaseUsers = [];
   }
@@ -709,7 +728,7 @@ function renderMyWorkTab() {
               ? `<i class="ph ph-clock" style="color:#f59e0b;flex-shrink:0"></i>`
               : `<i class="ph ph-wrench" style="color:var(--primary);flex-shrink:0"></i>`}
             <span class="enq-number">${enq.enquiryNumber}</span>
-            <span style="font-size:0.85rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${enq.customerId?.name || '—'}</span>
+            <span style="font-size:0.85rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(enq.customerId?.name) || '—'}</span>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">
             ${waiting.length > 0 ? `<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:0.7rem">${waiting.length} waiting</span>` : ''}
@@ -729,13 +748,13 @@ function renderMyWorkTab() {
                 ${waiting.map(item => {
                   const prod = item.productId;
                   return `<tr style="border-left:3px solid #f59e0b">
-                    <td><div style="font-weight:600">${prod?.materialName || '—'}</div>
-                      <div style="font-size:0.78rem;color:var(--text-muted)">${[prod?.brand, prod?.specification].filter(Boolean).join(' · ')}</div>
+                    <td><div style="font-weight:600">${escapeHtml(prod?.materialName) || '—'}</div>
+                      <div style="font-size:0.78rem;color:var(--text-muted)">${[prod?.brand, prod?.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>
                     </td>
-                    <td>${item.quantity} ${prod?.uom || ''}</td>
+                    <td>${item.quantity} ${escapeHtml(prod?.uom) || ''}</td>
                     <td><div class="flex gap-1">
                       <button class="btn btn-secondary btn-sm" onclick="openChat('${enq._id}', '${enq.enquiryNumber}')"><i class="ph ph-chat-text"></i> View Chat</button>
-                      <button class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" onclick="resolveQuery('${enq._id}', '${item._id}')"><i class="ph ph-check-circle"></i> Resolve</button>
+                      ${hasPermission('query.send') ? `<button class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" onclick="resolveQuery('${enq._id}', '${item._id}')"><i class="ph ph-check-circle"></i> Resolve</button>` : ''}
                     </div></td>
                   </tr>`;
                 }).join('')}
@@ -751,14 +770,14 @@ function renderMyWorkTab() {
                 ${active.map(item => {
                   const prod = item.productId;
                   return `<tr>
-                    <td><div style="font-weight:600">${prod?.materialName || '—'}</div>
-                      <div style="font-size:0.78rem;color:var(--text-muted)">${[prod?.brand, prod?.specification].filter(Boolean).join(' · ')}</div>
+                    <td><div style="font-weight:600">${escapeHtml(prod?.materialName) || '—'}</div>
+                      <div style="font-size:0.78rem;color:var(--text-muted)">${[prod?.brand, prod?.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>
                     </td>
-                    <td>${item.quantity} ${prod?.uom || ''}</td>
+                    <td>${item.quantity} ${escapeHtml(prod?.uom) || ''}</td>
                     <td>${getStatusBadge(item.status)}</td>
                     <td><div class="flex gap-1 flex-wrap">
-                      <button class="btn btn-success btn-sm" onclick="showQuotationModal('${item._id}')"><i class="ph ph-plus-circle"></i> Quote</button>
-                      <button class="btn btn-secondary btn-sm" onclick="openRaiseQueryModal('${enq._id}', '${item._id}', '${enq.enquiryNumber}')"><i class="ph ph-question"></i> Raise Query</button>
+                      ${hasPermission('purchase_price.add') ? `<button class="btn btn-success btn-sm" onclick="showQuotationModal('${item._id}')"><i class="ph ph-plus-circle"></i> Quote</button>` : ''}
+                      ${hasPermission('query.send') ? `<button class="btn btn-secondary btn-sm" onclick="openRaiseQueryModal('${enq._id}', '${item._id}', '${enq.enquiryNumber}')"><i class="ph ph-question"></i> Raise Query</button>` : ''}
                       <button class="btn btn-secondary btn-sm" onclick="openChat('${enq._id}', '${enq.enquiryNumber}')"><i class="ph ph-chat-text"></i></button>
                       <button class="btn btn-sm" style="background:var(--bg-hover);border:1px solid var(--border)" onclick="generateWhatsApp('${enq._id}')"><i class="ph ph-whatsapp-logo"></i></button>
                     </div></td>
@@ -817,7 +836,7 @@ function renderDoneTab() {
         <div class="enquiry-accordion-header" onclick="toggleEnquiryCard('${id}')">
           <div style="display:flex;align-items:center;gap:0.75rem;flex:1;min-width:0">
             <span class="enq-number">${enq.enquiryNumber}</span>
-            <span style="font-size:0.85rem;color:var(--text-secondary)">${enq.customerId?.name || '—'}</span>
+            <span style="font-size:0.85rem;color:var(--text-secondary)">${escapeHtml(enq.customerId?.name) || '—'}</span>
           </div>
           <div style="display:flex;align-items:center;gap:0.6rem;flex-shrink:0">
             <span class="badge" style="background:#d1fae5;color:#065f46;font-size:0.7rem">${items.length} done</span>
@@ -831,8 +850,8 @@ function renderDoneTab() {
               ${items.map(item => {
                 const prod = item.productId;
                 return `<tr>
-                  <td style="font-weight:600">${prod?.materialName || '—'}</td>
-                  <td>${item.quantity} ${prod?.uom || ''}</td>
+                  <td style="font-weight:600">${escapeHtml(prod?.materialName) || '—'}</td>
+                  <td>${item.quantity} ${escapeHtml(prod?.uom) || ''}</td>
                   <td>${getStatusBadge(item.status)}</td>
                   <td>${['vendor_quoted', 'priced', 'sales_priced'].includes(item.status)
                     ? `<button class="btn btn-secondary btn-sm" onclick="viewQuotes('${item._id}')"><i class="ph ph-clipboard-text"></i> Quotes</button>`
@@ -915,7 +934,7 @@ function renderTeamOverviewTab() {
         <div class="team-member-header" onclick="toggleTeamMemberCard('${bodyId}', '${user._id}')">
           <div class="member-avatar" style="background:${color}22;color:${color};border:1.5px solid ${color}44">${initials}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:0.9rem">${user.name}</div>
+            <div style="font-weight:600;font-size:0.9rem">${escapeHtml(user.name)}</div>
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
               <div class="enquiry-progress-bar" style="width:130px">
                 <div class="enquiry-progress-fill" style="width:${pct}%;background:${color}"></div>
@@ -936,7 +955,7 @@ function renderTeamOverviewTab() {
               <div style="margin-bottom:0.75rem">
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.35rem">
                   <span class="enq-number" style="font-size:0.82rem">${enq.enquiryNumber}</span>
-                  <span style="font-size:0.8rem;color:var(--text-muted)">${enq.customerId?.name || '—'}</span>
+                  <span style="font-size:0.8rem;color:var(--text-muted)">${escapeHtml(enq.customerId?.name) || '—'}</span>
                 </div>
                 <table class="items-table">
                   <thead><tr><th>Material</th><th>Qty</th><th>Status</th><th>Reassign</th></tr></thead>
@@ -944,13 +963,13 @@ function renderTeamOverviewTab() {
                     ${items.map(item => {
                       const prod = item.productId;
                       return `<tr>
-                        <td style="font-weight:600">${prod?.materialName || '—'}</td>
-                        <td>${item.quantity} ${prod?.uom || ''}</td>
+                        <td style="font-weight:600">${escapeHtml(prod?.materialName) || '—'}</td>
+                        <td>${item.quantity} ${escapeHtml(prod?.uom) || ''}</td>
                         <td>${getStatusBadge(item.status)}</td>
                         <td><div class="flex gap-1">
                           <select id="reassign-${item._id}" style="padding:0.3rem;border:1px solid var(--border);border-radius:0.4rem;font-size:0.78rem;max-width:110px">
                             <option value="">Reassign…</option>
-                            ${(window._purchaseUsers || []).filter(u => u._id !== user._id).map(u => `<option value="${u._id}">${u.name}</option>`).join('')}
+                            ${(window._purchaseUsers || []).filter(u => u._id !== user._id).map(u => `<option value="${u._id}">${escapeHtml(u.name)}</option>`).join('')}
                           </select>
                           <button class="btn btn-secondary btn-sm" onclick="doReassign('${enq._id}', '${item._id}')"><i class="ph ph-arrows-clockwise"></i></button>
                         </div></td>
@@ -1021,7 +1040,12 @@ async function confirmRaiseQuery() {
 }
 
 async function resolveQuery(enquiryId, itemId) {
-  if (!confirm('Mark this query as resolved and continue with sourcing?')) return;
+  const sure = await confirmDialog({
+    title: 'Mark this query as resolved?',
+    message: 'The sales person is told it is answered, and you can carry on adding vendor quotes.',
+    confirmLabel: 'Mark resolved',
+  });
+  if (!sure) return;
   try {
     await apiCall(`/enquiries/${enquiryId}/items/${itemId}/resolve-query`, { method: 'PUT' });
     showToast('Query resolved — you can now add vendor quote', 'success');
@@ -1091,8 +1115,23 @@ function updateTabContextFilters(tab) {
   container.innerHTML = `
     <div style="width:1px;height:1.2rem;background:var(--border);flex-shrink:0;margin:0 0.1rem"></div>
     <span class="filter-label"><i class="ph ph-funnel-simple"></i> Status</span>
-    ${chips.map(c => `<div class="filter-chip" data-filter="${c.filter}" onclick="toggleFilter('${c.filter}')">${c.label}</div>`).join('')}
+    ${chips.map(c => `<div class="filter-chip" data-filter="${c.filter}" onclick="toggleFilter('${c.filter}')">${c.label} <span class="chip-count" data-count-for="${c.filter}"></span></div>`).join('')}
   `;
+  updateTabChipCounts();
+}
+
+// Each status chip on My Work / Done says how many of your items are in that state
+function updateTabChipCounts() {
+  const me = window.currentUserId;
+  document.querySelectorAll('#tabContextFilters .chip-count[data-count-for]').forEach(el => {
+    const status = el.dataset.countFor;
+    let n = 0;
+    enquiries.forEach(enq => (enq.items || []).forEach(item => {
+      if (item.status === status && (item.assignedTo?._id || item.assignedTo) === me) n++;
+    }));
+    el.textContent = n;
+    el.closest('.filter-chip').setAttribute('aria-label', `${el.closest('.filter-chip').textContent.replace(/\s+/g, ' ').trim()}`);
+  });
 }
 
 function updateFilterResultCount(shown, total) {
@@ -1108,6 +1147,7 @@ function updateClearFiltersBtn() {
   if (btn) btn.style.display = hasFilters ? '' : 'none';
 }
 
+const handleSearchDebounced = debounce(() => handleSearch());
 function handleSearch() {
   const input = document.getElementById('searchSourcing');
   searchQuery = (input?.value || '').toLowerCase().trim();
@@ -1350,17 +1390,17 @@ async function populateVendorSelect() {
       pricingHTML = '<div class="vendor-no-history">No history</div>';
     }
     return `
-      <div class="vendor-option" data-vendor-id="${vendor._id}" data-vendor-name="${vendor.name}">
+      <div class="vendor-option" data-vendor-id="${vendor._id}" data-vendor-name="${escapeHtml(vendor.name)}">
         <div class="vendor-main">
-          <div class="vendor-name">${vendor.name}</div>
-          ${vendor.specialization ? `<div class="vendor-spec">${vendor.specialization}</div>` : ''}
+          <div class="vendor-name">${escapeHtml(vendor.name)}</div>
+          ${vendor.specialization ? `<div class="vendor-spec">${escapeHtml(vendor.specialization)}</div>` : ''}
         </div>
         ${pricingHTML}
       </div>`;
   }).join('');
 
-  // Always show "Add New Vendor" — permission enforced server-side
-  const addNewHTML = `
+  // "Add New Vendor" is offered only to roles that may add vendors (the server enforces it too)
+  const addNewHTML = !hasPermission('vendor.create') ? '' : `
     <div class="vendor-option add-new-vendor-option" onclick="showAddVendorModal()">
       <div class="vendor-main" style="flex-direction:row;align-items:center;gap:0.5rem">
         <i class="ph ph-plus-circle" style="font-size:1.05rem;color:var(--primary);flex-shrink:0"></i>
@@ -1383,26 +1423,7 @@ async function populateVendorSelect() {
       opt.classList.toggle('selected', opt.dataset.vendorId === vendorId));
     trigger.classList.remove('active');
     optionsContainer.classList.remove('active');
-    const priceData = priceMap[vendorId];
-    if (priceData && priceData.hasHistory) {
-      if (!document.getElementById('vendorPrice').value) {
-        document.getElementById('vendorPrice').value = priceData.price;
-        const pi = document.getElementById('vendorPrice');
-        pi.style.backgroundColor = 'rgba(16,185,129,0.1)';
-        setTimeout(() => pi.style.backgroundColor = '', 1000);
-      }
-      const fi = document.getElementById('freightPrice');
-      if (priceData.freight && (fi.value === '0' || !fi.value)) {
-        fi.value = priceData.freight;
-        fi.style.backgroundColor = 'rgba(16,185,129,0.1)';
-        setTimeout(() => fi.style.backgroundColor = '', 1000);
-      }
-      calculateQuoteTotal();
-    } else {
-      document.getElementById('vendorPrice').value = '';
-      document.getElementById('freightPrice').value = '0';
-      calculateQuoteTotal();
-    }
+    applyRememberedPrice(priceMap[vendorId], vendorName);
   };
 
   // Toggle dropdown
@@ -1476,6 +1497,49 @@ async function handleVendorCreation() {
 }
 
 // Check last price
+// Fills the price from this vendor's last quote for this material, and says so. Only ever overwrites a number the
+// app filled in itself (picking another vendor replaces it), never something the person typed.
+const STALE_PRICE_DAYS = 90;
+function applyRememberedPrice(last, vendorName) {
+  const priceInput = document.getElementById('vendorPrice');
+  const freightInput = document.getElementById('freightPrice');
+  const hint = document.getElementById('priceHint');
+  const mayReplace = (input, empty) => input.value === '' || input.value === empty || input.value === input.dataset.prefilled;
+  const flash = (input) => { input.style.backgroundColor = 'rgba(16,185,129,0.1)'; setTimeout(() => { input.style.backgroundColor = ''; }, 1000); };
+  const setHint = (html, tone) => {
+    if (!hint) return;
+    hint.style.display = html ? '' : 'none';
+    hint.innerHTML = html;
+    hint.style.background = tone === 'warn' ? '#fffbeb' : '#f1f5f9';
+    hint.style.color = tone === 'warn' ? '#92400e' : '#334155';
+  };
+
+  if (!last || !last.hasHistory) {
+    if (mayReplace(priceInput, '')) { priceInput.value = ''; delete priceInput.dataset.prefilled; }
+    if (mayReplace(freightInput, '0')) { freightInput.value = '0'; delete freightInput.dataset.prefilled; }
+    setHint(`<i class="ph ph-info"></i> No earlier price from ${escapeHtml(vendorName || 'this vendor')} for this material. Enter today's price.`, 'info');
+    calculateQuoteTotal();
+    return;
+  }
+
+  const filled = mayReplace(priceInput, '');
+  if (filled) { priceInput.value = last.price; priceInput.dataset.prefilled = String(last.price); flash(priceInput); }
+  if (mayReplace(freightInput, '0')) {
+    freightInput.value = last.freight || 0;
+    freightInput.dataset.prefilled = String(last.freight || 0);
+    if (last.freight) flash(freightInput);
+  }
+  const ageDays = Math.floor((Date.now() - new Date(last.date).getTime()) / 86400000);
+  const day = new Date(last.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const what = `${escapeHtml(vendorName || 'This vendor')} last quoted <b>${escapeHtml(formatCurrency(last.price))}</b>${last.freight ? ` + ${escapeHtml(formatCurrency(last.freight))} freight` : ''} on ${escapeHtml(day)} (${escapeHtml(relativeTime(last.date))}).`;
+  if (ageDays > STALE_PRICE_DAYS) {
+    setHint(`<i class="ph ph-warning"></i> ${what} That price is old, so please confirm it is still right${filled ? ' (it has been filled in for you)' : ''}.`, 'warn');
+  } else {
+    setHint(`<i class="ph ph-clock-counter-clockwise"></i> ${what}${filled ? ' Filled in for you. Change it if the price has moved.' : ''}`, 'info');
+  }
+  calculateQuoteTotal();
+}
+
 async function checkLastPrice(vendorId, productId) {
   const historyDiv = document.getElementById('priceHistory');
   if (!historyDiv) return;
@@ -1605,13 +1669,13 @@ async function showQuotationModal(itemId) {
 
   document.getElementById('quotationItemInfo').innerHTML = `
     <div>
-      <h4 style="font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">${item.productId.materialName}</h4>
+      <h4 style="font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">${escapeHtml(item.productId?.materialName || 'Unknown material')}</h4>
       <div class="text-muted" style="font-size: 0.9rem; line-height: 1.5;">
         <span style="display: inline-block; background: var(--bg-tertiary); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 500; color: var(--text-primary); margin-right: 0.5rem;">
-            ${item.quantity} ${item.productId.uom}
+            ${item.quantity} ${escapeHtml(item.productId.uom)}
         </span>
-        ${item.productId.brand ? `<span style="margin-right: 0.5rem;">• ${item.productId.brand}</span>` : ''}
-        ${item.productId.specification ? `<span>• ${item.productId.specification}</span>` : ''}
+        ${item.productId.brand ? `<span style="margin-right: 0.5rem;">• ${escapeHtml(item.productId.brand)}</span>` : ''}
+        ${item.productId.specification ? `<span>• ${escapeHtml(item.productId.specification)}</span>` : ''}
       </div>
     </div>
     `;
@@ -1620,6 +1684,10 @@ async function showQuotationModal(itemId) {
   document.getElementById('vendorSelect').value = '';
   document.getElementById('vendorPrice').value = '';
   document.getElementById('freightPrice').value = '0';
+  delete document.getElementById('vendorPrice').dataset.prefilled;
+  delete document.getElementById('freightPrice').dataset.prefilled;
+  const priceHint = document.getElementById('priceHint');
+  if (priceHint) priceHint.style.display = 'none';
   document.getElementById('quotationNotes').value = '';
 
   // Reset dropdown trigger display
@@ -1727,11 +1795,11 @@ async function viewQuotes(itemId) {
         return `
           <div class="vendor-quote">
             <div class="vendor-quote-header">
-              <span>Vendor ${index + 1}: ${quote.vendorId?.name || 'Unknown'}</span>
+              <span>Vendor ${index + 1}: ${escapeHtml(quote.vendorId?.name) || 'Unknown'}</span>
               <div class="flex gap-2 align-center">
                   <span class="text-muted" style="font-weight: normal; font-size: 0.8rem;">${formatDate(quote.enteredAt)}</span>
                   <button class="btn btn-secondary btn-sm" style="padding: 0.1rem 0.4rem;" 
-                      onclick="editQuote('${quote._id}', '${quote.vendorId?._id}', ${quote.vendorPrice}, ${quote.freightPrice}, '${quote.notes || ''}')">
+                      onclick="editQuote('${quote._id}', '${quote.vendorId?._id}', ${quote.vendorPrice}, ${quote.freightPrice}, '${escapeHtml(quote.notes) || ''}')">
                       ✏️
                   </button>
               </div>
@@ -1754,7 +1822,7 @@ async function viewQuotes(itemId) {
                 <div class="detail-value" style="font-weight: 700; color: var(--primary);">${formatCurrency(totalPrice)}</div>
               </div>
             </div>
-            ${quote.notes ? `<p class="text-muted mt-1" style="font-size: 0.875rem;">Note: ${quote.notes}</p>` : ''}
+            ${quote.notes ? `<p class="text-muted mt-1" style="font-size: 0.875rem;">Note: ${escapeHtml(quote.notes)}</p>` : ''}
           </div>
         `;
       }).join('');
@@ -1798,10 +1866,10 @@ function editQuote(quoteId, vendorId, price, freight, notes) {
   if (item) {
     document.getElementById('quotationItemInfo').innerHTML = `
         <div class="card" style="padding: 1rem;">
-          <h4>${item.productId.materialName}</h4>
+          <h4>${escapeHtml(item.productId?.materialName || 'Unknown material')}</h4>
           <p class="text-muted">
-            Quantity: ${item.quantity} ${item.productId.uom}<br>
-            ${item.productId.brand ? 'Brand: ' + item.productId.brand + '<br>' : ''}
+            Quantity: ${item.quantity} ${escapeHtml(item.productId.uom)}<br>
+            ${item.productId.brand ? 'Brand: ' + escapeHtml(item.productId.brand) + '<br>' : ''}
           </p>
           <div class="badge badge-warning">Editing Quotation</div>
         </div>
@@ -1815,51 +1883,39 @@ function closeViewQuotesModal() {
   document.getElementById('viewQuotesModal').classList.remove('active');
 }
 
+// Links from notifications and from the "Needs you today" cards:
+//   ?tab=new_queue|my_work|done      open that tab
+//   ?enquiryId=<id>                  open the tab that holds this enquiry (mine → My Work, still unclaimed → New Queue, otherwise
+//                                    Done), expand it, scroll to it and flash it
 function handleUrlParameters() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const enquiryId = urlParams.get('enquiryId');
-  if (enquiryId) {
-    console.log('🔄 Notification Navigation: Target Enquiry ID', enquiryId);
-    let retries = 0;
-    const maxRetries = 8; // Increased retries
+  const params = new URLSearchParams(window.location.search);
+  const wantedTab = params.get('tab');
+  const enquiryId = params.get('enquiryId');
+  if (!wantedTab && !enquiryId) return;
+  // done once: the address is cleaned straight away so a redraw (or a refresh) doesn't repeat it
+  history.replaceState(null, '', window.location.pathname);
 
-    const attemptNavigation = () => {
-      const row = document.getElementById(`enquiry - ${enquiryId}`);
-      if (row) {
-        console.log('✅ Notification Navigation: Row found');
-        // Expand if not already expanded
-        const itemsDiv = document.getElementById(`items - ${enquiryId}`);
-        if (itemsDiv && !itemsDiv.classList.contains('expanded')) {
-          toggleEnquiry(enquiryId);
-        }
+  const tabs = ['new_queue', 'my_work', 'done'];
+  if (wantedTab && tabs.includes(wantedTab) && !enquiryId) { switchTab(wantedTab); return; }
+  if (!enquiryId) return;
 
-        // Smooth scroll to row
-        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const enquiry = enquiries.find(e => e._id === enquiryId);
+  if (!enquiry) { showToast('That enquiry is no longer on your list', 'info'); return; }
+  const itemsOf = enquiry.items || [];
+  const isMine = (item) => (item.assignedTo?._id || item.assignedTo) === window.currentUserId;
+  const tab = itemsOf.some(i => isMine(i) && !['completed', 'unsuccessful', 'vendor_quoted', 'priced', 'sales_priced'].includes(i.status)) ? 'my_work'
+    : itemsOf.some(i => ['unassigned', 'pending'].includes(i.status)) ? 'new_queue' : 'done';
+  const prefix = { new_queue: 'eq-nq-', my_work: 'eq-mw-', done: 'eq-done-' }[tab];
 
-        // Highlight with pulse animation
-        row.classList.add('highlight-enquiry');
-
-        // Clear the URL parameter so it doesn't re-trigger on re-renders
-        const cleanUrl = window.location.pathname;
-        history.replaceState(null, '', cleanUrl);
-
-        // Remove highlight class after animation finishes
-        setTimeout(() => {
-          row.classList.remove('highlight-enquiry');
-        }, 4000);
-      } else if (retries < maxRetries) {
-        retries++;
-        console.log(`⚠️ Notification Navigation: Row not found, retrying(${retries} / ${maxRetries})...`);
-        setTimeout(attemptNavigation, 500);
-      } else {
-        console.error('❌ Notification Navigation: Failed to find row after retries');
-      }
-    };
-
-    // Use a smaller initial delay if data is already present
-    const initialDelay = (typeof enquiries !== 'undefined' && enquiries.length > 0) ? 100 : 800;
-    setTimeout(attemptNavigation, initialDelay);
-  }
+  if (viewMode !== 'enquiry') setViewMode('enquiry');
+  switchTab(tab);
+  const body = document.getElementById(prefix + enquiryId);
+  if (!body) return;
+  if (body.style.display === 'none') toggleEnquiryCard(prefix + enquiryId);
+  const card = body.closest('.enquiry-accordion-card') || body;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('highlight-enquiry');
+  setTimeout(() => card.classList.remove('highlight-enquiry'), 4000);
 }
 
 // --- Sales Query Chat Logic ---
@@ -1909,6 +1965,7 @@ async function openChat(enquiryId, enquiryNumber) {
         `<div class="p-3 text-center text-muted border-t" style="font-size: 0.9rem; background: var(--bg-hover);">
               <i class="ph ph-lock-key"></i> Conversation closed. Enquiry is fully quoted.
              </div>` :
+        !hasPermission('query.send') ? `<div class="p-3 text-center text-muted border-t" style="font-size: 0.9rem; background: var(--bg-hover);"><i class="ph ph-eye"></i> You can read this conversation, but your role can't send messages.</div>` :
         `<div class="chat-input-area">
               <input type="text" id="chatInput" class="chat-input" placeholder="Type your message..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
               <button class="btn btn-primary" onclick="sendChatMessage()" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -1935,6 +1992,10 @@ async function openChat(enquiryId, enquiryNumber) {
           <i class="ph ph-lock-key"></i> Conversation closed. Enquiry is fully quoted.
         </div>
       `);
+    } else if (!hasPermission('query.send')) {
+      container.insertAdjacentHTML('beforeend', `
+        <div class="p-3 text-center text-muted border-t" style="font-size: 0.9rem; background: var(--bg-hover);"><i class="ph ph-eye"></i> You can read this conversation, but your role can't send messages.</div>
+      `);
     } else {
       container.insertAdjacentHTML('beforeend', `
         <div class="chat-input-area">
@@ -1952,7 +2013,7 @@ async function openChat(enquiryId, enquiryNumber) {
 
   // Start polling
   if (chatInterval) clearInterval(chatInterval);
-  chatInterval = setInterval(() => loadMessages(enquiryId), 3000);
+  chatInterval = setInterval(() => { if (!document.hidden) loadMessages(enquiryId); }, 3000);
 }
 
 function closeChat() {
@@ -1983,9 +2044,9 @@ async function loadMessages(enquiryId) {
       return `
         <div class="chat-message ${isMe ? 'sent' : 'received'}">
           <div style="font-weight: 600; font-size: 0.7rem; margin-bottom: 0.2rem; opacity: 0.9;">
-            ${isMe ? 'Me' : m.senderId.name} (${m.senderId.role})
+            ${isMe ? 'Me' : escapeHtml(m.senderId.name)} (${escapeHtml(m.senderId.role)})
           </div>
-          <div>${m.message}</div>
+          <div>${escapeHtml(m.message)}</div>
           <div class="message-info">${new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
       `;

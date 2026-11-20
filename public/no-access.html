@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No access yet – Precise Procure</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/premium-ui.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem">
+        <div style="max-width:30rem;text-align:center;background:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.6);border-radius:1.25rem;padding:2.5rem 2rem;box-shadow:0 8px 32px rgba(0,0,0,0.08)">
+            <i class="ph ph-lock-key" style="font-size:3rem;color:var(--primary);opacity:0.8"></i>
+            <h1 style="font-size:1.5rem;margin:1rem 0 0.5rem">Nothing to open yet</h1>
+            <p class="text-muted" id="explain" style="line-height:1.6;margin-bottom:1.5rem">
+                Your account is working, but your role doesn't include any screens yet.
+                Ask an administrator to add what you need to your role, or to give you a different one.
+            </p>
+            <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+                <button class="btn btn-primary" id="askAccess"><i class="ph ph-hand-waving"></i> Ask an administrator</button>
+                <button class="btn btn-secondary" id="recheck"><i class="ph ph-arrows-clockwise"></i> Check again</button>
+                <button class="btn btn-secondary" onclick="logout()"><i class="ph ph-sign-out"></i> Log out</button>
+            </div>
+            <p class="text-muted" id="who" style="font-size:0.8rem;margin-top:1.5rem"></p>
+        </div>
+    </main>
+    <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
+    <script>
+        // Not using checkAuth(): it would send someone with no screens back to the login page
+        if (!getToken()) window.location.href = '/';
+        const me = getUser();
+        if (me) {
+            document.getElementById('who').textContent =
+                `Signed in as ${me.name || me.email}${me.roleName ? ` · role: ${me.roleName}` : ''}`;
+        }
+        // If an administrator has fixed the role in the meantime, go straight in
+        async function recheck() {
+            const ok = await refreshSession();
+            const user = getUser();
+            if (ok && user && user.landingPage) { window.location.href = '/' + user.landingPage; return; }
+            showToast(ok ? 'Still nothing here yet. Ask your administrator.' : 'Could not check just now. Please try again.', 'info');
+        }
+        document.getElementById('recheck').addEventListener('click', recheck);
+        document.getElementById('askAccess').addEventListener('click', () => {
+            showDialog({
+                title: 'Ask for access',
+                bodyHtml: `<p style="margin:0 0 0.8rem;line-height:1.55">Tell the administrators what you need to do. They will get a message with a link to your account.</p>
+                    <label for="needNote" style="font-size:0.8rem;font-weight:600">What do you need to do?</label>
+                    <textarea id="needNote" rows="3" maxlength="400" placeholder="e.g. I raise enquiries for customers" style="width:100%;margin-top:0.25rem"></textarea>`,
+                buttons: [{ label: 'Cancel' }, { label: 'Send request', kind: 'primary', onClick: () => requestAccess('any screen', (document.getElementById('needNote') || {}).value || '') }],
+            });
+        });
+        recheck();
+    </script>
+</body>
+</html>

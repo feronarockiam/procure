@@ -23,6 +23,7 @@ class QuotationPDFGenerator {
     }
 
     async generateQuotation(enquiry, selectedQuotes) {
+        requireLibs(['jspdf', 'autotable']);
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
@@ -40,6 +41,7 @@ class QuotationPDFGenerator {
 
     // Generate PDF from edited quotation data (from quotation editor)
     async generateFromEditedData(editedData) {
+        requireLibs(['jspdf', 'autotable']);
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 

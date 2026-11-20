@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Data - Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
 <div class="app-container">
@@ -64,7 +67,7 @@
                 <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
                 <a href="/role-management.html" class="nav-item">
                     <i class="ph ph-shield-check"></i>
-                    <span>Role Management</span>
+                    <span>Roles &amp; Access</span>
                 </a>
             </div>
 
@@ -125,12 +128,15 @@
             <div class="flex-between" style="flex-wrap:wrap;gap:1rem;align-items:center">
                 <div>
                     <h1 id="pageTitle" style="font-size:1.75rem;display:flex;align-items:center;gap:0.6rem;color:inherit"><i class="ph ph-database" style="color:var(--primary)"></i> Master Data</h1>
-                    <p class="text-muted">Manage your <span id="masterType"></span></p>
+                    <p class="text-muted" id="pageSubtitle"></p>
                 </div>
                 <div class="flex gap-2 items-center" style="flex-wrap:wrap">
-                    <input type="text" id="searchInput" placeholder="Search..." style="width:260px;padding:0.55rem 0.875rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.875rem;background:var(--bg-secondary)" onkeyup="filterData()">
+                    <input type="text" id="searchInput" placeholder="Search..." style="width:260px;padding:0.55rem 0.875rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.875rem;background:var(--bg-secondary)" onkeyup="filterDataDebounced()">
                     <button class="btn btn-secondary" onclick="loadData()">
                         <i class="ph ph-arrows-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-secondary" id="exportCsvBtn" onclick="exportMasterCsv()" title="Download what is listed here as a spreadsheet">
+                        <i class="ph ph-download-simple"></i> Download
                     </button>
                     <button class="btn btn-primary" id="addNewBtn" onclick="showAddModal()">
                         <i class="ph ph-plus-circle"></i> Add New
@@ -176,6 +182,7 @@
 </div>
 
 <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
 <script src="/js/layout.js"></script>
 <script src="/js/masters.js"></script>
 <script>

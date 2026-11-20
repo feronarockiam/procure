@@ -10,11 +10,7 @@ let viewMode = localStorage.getItem('viewMode_admin') || 'enquiry'; // 'enquiry'
 document.addEventListener('DOMContentLoaded', async () => {
     const user = checkAuth();
     if (!user) return;
-    if (!hasPermission('dashboard.admin')) {
-        showToast('You do not have permission to access the Admin dashboard', 'error');
-        setTimeout(() => window.location.href = '/', 1500);
-        return;
-    }
+    if (!requirePageAccess('/admin.html')) return;
 
     const userNameEl = document.getElementById('navUserName');
     if (userNameEl) userNameEl.textContent = user.name;
@@ -27,12 +23,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadDashboardData() {
     try {
         // Load all data
+        // The enquiry list drives the dashboard. The four lists only add counts, so a role that can open the
+        // dashboard but not (say) the employee list still gets everything else.
         [enquiries, products, customers, vendors, users] = await Promise.all([
             apiCall('/enquiries'),
-            apiCall('/products'),
-            apiCall('/customers'),
-            apiCall('/vendors'),
-            apiCall('/users')
+            apiCall('/products', { silent: true }).catch(() => []),
+            apiCall('/customers', { silent: true }).catch(() => []),
+            apiCall('/vendors', { silent: true }).catch(() => []),
+            apiCall('/users', { silent: true }).catch(() => [])
         ]);
 
         renderStats();
@@ -45,97 +43,107 @@ async function loadDashboardData() {
         renderPipelineVisualizer();
         renderTopProducts();
 
-        showToast('Dashboard updated with latest insights', 'success');
+        if (loadDashboardData.loadedOnce) showToast('Dashboard updated with latest insights', 'success');
+        loadDashboardData.loadedOnce = true;
     } catch (error) {
         console.error('Load dashboard error:', error);
         showToast('Failed to load dashboard data', 'error');
     }
 }
 
-// --- Strategic Insights Logic ---
+// --- What needs attention ---------------------------------------------------
+// Things that are slowing work down, each with a link to the enquiry. Everything here comes from the enquiry list already loaded.
+const STALLED_DAYS = 3; // the same number the "Needs you today" cards use
+
+const ageInDays = (value) => (Date.now() - new Date(value).getTime()) / 86400000;
+const daysText = (days) => (days < 1 ? 'less than a day' : `${Math.floor(days)} day${Math.floor(days) === 1 ? '' : 's'}`);
+
 function renderAIInsights() {
     const container = document.getElementById('aiInsightsList');
     if (!container) return;
 
-    const insights = [];
+    const open = enquiries.filter(e => e.status === 'active');
+    const lines = [];
+    const enquiryLink = (e) => `<a class="attention-link" href="/sales.html?enquiryId=${escapeHtml(e._id)}">${escapeHtml(e.enquiryNumber)}${e.customerId?.name ? ' · ' + escapeHtml(e.customerId.name) : ''}</a>`;
 
-    // 1. Bottleneck Analysis
-    const stalledEnquiries = enquiries.filter(e => {
-        const daysOpen = (new Date() - new Date(e.createdAt)) / (1000 * 60 * 60 * 24);
-        return e.status === 'active' && daysOpen > 5;
-    });
-
-    if (stalledEnquiries.length > 0) {
-        insights.push({
-            type: 'warning',
-            icon: 'warning-circle',
-            title: 'Attention Needed',
-            message: `${stalledEnquiries.length} enquiries have been active for >5 days.`
+    // 1. Enquiries that have been open too long
+    const stalled = open.filter(e => ageInDays(e.createdAt) > STALLED_DAYS).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    if (stalled.length) {
+        lines.push({
+            tone: 'danger', icon: 'hourglass-medium',
+            title: `${stalled.length} enquir${stalled.length === 1 ? 'y has' : 'ies have'} been open for more than ${STALLED_DAYS} days`,
+            detail: stalled.slice(0, 3).map(e => `${enquiryLink(e)} <span class="text-muted">(${daysText(ageInDays(e.createdAt))})</span>`).join('<br>') + (stalled.length > 3 ? `<br><span class="text-muted">and ${stalled.length - 3} more</span>` : ''),
         });
     }
 
-    // 2. Revenue Opportunity
+    // 2. Items nobody has been given
+    const itemsOf = (test) => open.flatMap(e => (e.items || []).filter(test).map(item => ({ item, enquiry: e })));
+    const unassigned = itemsOf(i => ['unassigned', 'pending'].includes(i.status));
+    if (unassigned.length) {
+        const oldest = Math.max(...unassigned.map(({ enquiry }) => ageInDays(enquiry.createdAt)));
+        lines.push({
+            tone: oldest > 1 ? 'danger' : 'warn', icon: 'user-plus',
+            title: `${unassigned.length} item${unassigned.length === 1 ? ' is' : 's are'} waiting to be given to someone`,
+            detail: `The longest has waited ${daysText(oldest)}. <a class="attention-link" href="/sales.html?filter=pending">Assign them</a>`,
+        });
+    }
+
+    // 3. Purchase people who have not answered
+    const slow = itemsOf(i => i.status === 'assigned' && ageInDays(i.assignedAt || i.updatedAt || i.createdAt) > 2);
+    if (slow.length) {
+        const who = {};
+        slow.forEach(({ item }) => { const n = item.assignedTo?.name || 'Someone'; who[n] = (who[n] || 0) + 1; });
+        lines.push({
+            tone: 'warn', icon: 'clock-countdown',
+            title: `${slow.length} item${slow.length === 1 ? ' has' : 's have'} waited over 2 days for a vendor price`,
+            detail: Object.entries(who).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n, c]) => `${escapeHtml(n)}: ${c}`).join(' · '),
+        });
+    }
+
+    // 4. Questions sales has not answered
+    const questions = itemsOf(i => i.status === 'in_sales_query');
+    if (questions.length) {
+        lines.push({
+            tone: 'danger', icon: 'chat-circle-dots',
+            title: `${questions.length} question${questions.length === 1 ? ' is' : 's are'} waiting for a reply from sales`,
+            detail: `<a class="attention-link" href="/sales.html?filter=needs_response">See them</a>`,
+        });
+    }
+
+    // 5. Good news: ready to go out
+    const ready = open.filter(e => (e.items || []).length && e.items.every(i => ['priced', 'sales_priced', 'completed', 'unsuccessful'].includes(i.status)) && e.items.some(i => ['priced', 'sales_priced'].includes(i.status)));
+    if (ready.length) {
+        lines.push({
+            tone: 'success', icon: 'paper-plane-tilt',
+            title: `${ready.length} quotation${ready.length === 1 ? ' is' : 's are'} ready to send`,
+            detail: ready.slice(0, 3).map(enquiryLink).join('<br>'),
+        });
+    }
+
     const topCustomer = getTopCustomer();
-    if (topCustomer) {
-        insights.push({
-            type: 'success',
-            icon: 'trend-up',
-            title: 'Top Client',
-            message: `${topCustomer.name} leads with ${topCustomer.count} active deals.`
-        });
-    }
-
-    // 3. Communication High-Traffic
-    const highCommEnquiries = enquiries.filter(e => (e.queryCount || 0) > 8);
-    if (highCommEnquiries.length > 0) {
-        insights.push({
-            type: 'info',
-            icon: 'chat-text',
-            title: 'High Communication',
-            message: `${highCommEnquiries.length} enquiries have intensive discussion (>8 messages).`
-        });
-    }
-
-    // 4. Efficiency Metric
     const completionRate = Math.round((enquiries.filter(e => e.status === 'completed').length / (enquiries.length || 1)) * 100);
-    if (completionRate > 50) {
-        insights.push({
-            type: 'info',
-            icon: 'lightning',
-            title: 'High Performance',
-            message: `Team efficiency is strong at ${completionRate}% completion.`
-        });
-    } else {
-        insights.push({
-            type: 'info',
-            icon: 'chart-bar',
-            title: 'Pipeline Status',
-            message: `Current completion rate is ${completionRate}%.`
-        });
-    }
+    const snapshot = enquiries.length
+        ? `<div class="attention-snapshot">${topCustomer ? `Most enquiries: <b>${escapeHtml(topCustomer.name)}</b> (${topCustomer.count}) · ` : ''}${completionRate}% of enquiries completed</div>`
+        : '';
 
-    // Render Insights (No "View All" button)
-    if (insights.length === 0) {
-        container.innerHTML = '<p class="text-muted">No critical insights at this moment.</p>';
-        return;
-    }
-
-    container.innerHTML = insights.map(insight => `
-        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
-            <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--${insight.type === 'warning' ? 'danger' : insight.type === 'success' ? 'success' : 'primary'}); font-size: 1.25rem;">
-                <i class="ph ph-${insight.icon}"></i>
-            </div>
-            <div>
-                <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem;">${insight.title}</div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${insight.message}</div>
-            </div>
-        </div>
-    `).join('');
+    container.innerHTML = (lines.length
+        ? lines.map(line => `
+            <div class="attention-row tone-${line.tone}">
+                <div class="attention-icon"><i class="ph ph-${line.icon}" aria-hidden="true"></i></div>
+                <div class="attention-text">
+                    <div class="attention-title">${escapeHtml(line.title)}</div>
+                    ${line.detail ? `<div class="attention-detail">${line.detail}</div>` : ''}
+                </div>
+            </div>`).join('')
+        : `<div class="attention-row tone-success"><div class="attention-icon"><i class="ph ph-check-circle" aria-hidden="true"></i></div>
+            <div class="attention-text"><div class="attention-title">${enquiries.length ? 'Nothing is stuck right now' : 'No enquiries yet'}</div>
+            <div class="attention-detail">${enquiries.length ? 'Every open enquiry is moving.' : 'They will show up here as soon as the first one is raised.'}</div></div></div>`) + snapshot;
 }
 
 // --- Profitability Logic ---
 function renderProfitability() {
     let totalRevenue = 0;
+    let uncosted = 0; // priced items with no vendor quote chosen: their cost is unknown, not zero
     let totalCost = 0;
 
     enquiries.forEach(enq => {
@@ -150,6 +158,8 @@ function renderProfitability() {
                         const quote = item.selectedVendorQuoteId;
                         const itemCost = (quote.vendorPrice * item.quantity) + (quote.freightPrice || 0);
                         totalCost += itemCost;
+                    } else {
+                        uncosted++;
                     }
                 }
             });
@@ -160,9 +170,21 @@ function renderProfitability() {
     const margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
 
     document.getElementById('totalRevenue').textContent = formatCurrency(totalRevenue);
-    document.getElementById('totalCost').textContent = formatCurrency(totalCost);
-    document.getElementById('netProfit').textContent = formatCurrency(netProfit);
-    document.getElementById('profitMarginBadge').textContent = `${margin}% Margin`;
+    // With any priced item missing its vendor cost, the profit would be a guess (and read as 100% margin): show it as unknown
+    const costEl = document.getElementById('totalCost'), profitEl = document.getElementById('netProfit');
+    costEl.textContent = uncosted > 0 ? (totalCost > 0 ? `${formatCurrency(totalCost)} (partial)` : '—') : formatCurrency(totalCost);
+    profitEl.textContent = uncosted > 0 ? '—' : formatCurrency(netProfit);
+    costEl.title = profitEl.title = uncosted > 0 ? 'Choose the vendor quote on each priced item to see cost and profit' : '';
+    const badge = document.getElementById('profitMarginBadge');
+    if (uncosted > 0) {
+        // a margin worked out from missing costs would read as an impressive 100%
+        badge.textContent = `Cost missing on ${uncosted} priced item${uncosted === 1 ? '' : 's'}`;
+        badge.title = 'Margin is shown only when every priced item has a vendor quote chosen for it';
+        badge.style.background = '#fffbeb'; badge.style.color = '#92400e'; badge.style.textTransform = 'none';
+    } else {
+        badge.textContent = totalRevenue > 0 ? `${margin}% Margin` : 'No priced items yet';
+        badge.title = ''; badge.style.background = ''; badge.style.color = ''; badge.style.textTransform = '';
+    }
 }
 
 // --- Workload Logic ---
@@ -170,24 +192,25 @@ function renderWorkload() {
     const container = document.getElementById('workloadList');
     if (!container) return;
 
-    // Group by Assigned To (Sourcing)
+    // Work is handed out per item, so count each person's items that are still with them (not yet priced or finished)
+    const WITH_THEM = ['assigned', 'in_sales_query', 'sales_query_resolved'];
     const workload = {};
-
     enquiries.forEach(enq => {
-        if (enq.status === 'active' && enq.assignedTo) {
-            const name = enq.assignedTo.name;
+        if (enq.status !== 'active') return;
+        (enq.items || []).forEach(item => {
+            if (!item.assignedTo || !WITH_THEM.includes(item.status)) return;
+            const name = item.assignedTo.name || 'Someone';
             workload[name] = (workload[name] || 0) + 1;
-        }
+        });
     });
 
-    // Convert to array and sort
     const sortedWorkload = Object.entries(workload)
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 5); // Top 5
+        .slice(0, 6);
 
     if (sortedWorkload.length === 0) {
-        container.innerHTML = '<p class="text-muted">No active assignments.</p>';
+        container.innerHTML = '<p class="text-muted">Nobody has open work right now.</p>';
         return;
     }
 
@@ -197,8 +220,8 @@ function renderWorkload() {
     container.innerHTML = sortedWorkload.map(user => `
         <div>
             <div class="flex-between mb-1">
-                <span style="font-size: 0.85rem; font-weight: 500;">${user.name}</span>
-                <span class="text-muted text-xs">${user.count} Active</span>
+                <span style="font-size: 0.85rem; font-weight: 500;">${escapeHtml(user.name)}</span>
+                <span class="text-muted text-xs">${user.count} open item${user.count === 1 ? '' : 's'}</span>
             </div>
             <div style="height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden;">
                 <div style="height: 100%; width: ${(user.count / maxCount) * 100}%; background: var(--primary); border-radius: 3px;"></div>
@@ -219,7 +242,8 @@ function getTopCustomer() {
     const counts = {};
     enquiries.forEach(e => {
         if (e.customerId) {
-            counts[e.customerId.name] = (counts[e.customerId.name] || 0) + 1;
+            const customerName = e.customerId?.name || 'Unknown';
+            counts[customerName] = (counts[customerName] || 0) + 1;
         }
     });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -244,21 +268,21 @@ function renderStats() {
     const totalQueries = enquiries.reduce((sum, e) => sum + (e.queryCount || 0), 0);
 
     const stats = [
-        { icon: 'file-text', label: 'Total Enquiries', value: totalEnquiries, color: 'var(--primary)' },
-        { icon: 'chat-text', label: 'Total Queries', value: totalQueries, color: 'var(--info)' },
-        { icon: 'check-circle', label: 'Completed', value: completedEnquiries, color: 'var(--success)' },
-        { icon: 'storefront', label: 'Vendors', value: vendors.length, color: 'var(--warning)' },
-        { icon: 'currency-dollar', label: 'Revenue', value: formatCurrency(totalSalesValue), color: 'var(--accent)' }
+        { icon: 'file-text', label: 'Total Enquiries', value: totalEnquiries, color: 'var(--primary)', href: '/sales.html' },
+        { icon: 'chat-text', label: 'Chat Messages', value: totalQueries, color: 'var(--info)' },
+        { icon: 'check-circle', label: 'Completed', value: completedEnquiries, color: 'var(--success)', href: '/sales.html?filter=successful' },
+        { icon: 'storefront', label: 'Vendors', value: vendors.length, color: 'var(--warning)', href: '/masters.html?type=vendors' },
+        { icon: 'currency-dollar', label: 'Quoted Value', value: formatCurrency(totalSalesValue), color: 'var(--accent)', href: '/sales.html?filter=quoted' }
     ];
 
     container.innerHTML = stats.map(stat => `
-        <div class="stat-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <${stat.href ? `a href="${stat.href}"` : 'div'} class="stat-card${stat.href ? ' stat-link' : ''}" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; text-decoration: none; color: inherit;">
             <div class="flex-between">
-                <div class="stat-label" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;">${stat.label}</div>
+                <div class="stat-label" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(stat.label)}</div>
                 <i class="ph ph-${stat.icon}" style="color: ${stat.color}; font-size: 1.25rem;"></i>
             </div>
             <div class="stat-value" style="font-size: 1.75rem;">${stat.value}</div>
-        </div>
+        </${stat.href ? 'a' : 'div'}>
     `).join('');
 }
 
@@ -275,15 +299,15 @@ function renderPipelineVisualizer() {
 
     container.innerHTML = `
         <h4 class="mb-4">Pipeline Health</h4>
-        <div style="display: flex; gap: 0.5rem; height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 1.5rem;">
-            <div style="flex: ${statusCounts.Active || 1}; background: var(--primary);" title="Active"></div>
-            <div style="flex: ${statusCounts.Completed || 1}; background: var(--success);" title="Completed"></div>
-            <div style="flex: ${statusCounts.Draft || 1}; background: var(--warning);" title="Draft"></div>
+        <div role="img" aria-label="${escapeHtml(Object.entries(statusCounts).map(([k, v]) => `${k} ${v}`).join(', '))}" style="display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 1.5rem; background: var(--border-light);">
+            ${[['Active', 'var(--primary)'], ['Completed', 'var(--success)'], ['Draft', 'var(--warning)'], ['Cancelled', 'var(--danger)']]
+                .filter(([name]) => statusCounts[name] > 0)
+                .map(([name, color]) => `<div style="flex: ${statusCounts[name]}; background: ${color};" title="${escapeHtml(name)}: ${statusCounts[name]}"></div>`).join('')}
         </div>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
             ${Object.entries(statusCounts).map(([status, count]) => `
                 <div class="flex-between" style="padding: 0.5rem; border-bottom: 1px solid var(--border-light);">
-                    <span style="font-size: 0.9rem;">${status}</span>
+                    <span style="font-size: 0.9rem; display:flex; align-items:center; gap:0.45rem;"><span aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:${({ Active: 'var(--primary)', Completed: 'var(--success)', Draft: 'var(--warning)', Cancelled: 'var(--danger)' })[status]}"></span>${status}</span>
                     <span style="font-weight: 600;">${count}</span>
                 </div>
             `).join('')}
@@ -298,7 +322,7 @@ function renderTopProducts() {
     const productCounts = {};
     enquiries.forEach(e => {
         e.items?.forEach(item => {
-            let name = item.materialName || item.description || 'Unspecified Product';
+            let name = (item.productId && item.productId.materialName) || item.materialName || item.description || 'Unnamed material';
             if (name.length > 20) name = name.substring(0, 20) + '...';
             productCounts[name] = (productCounts[name] || 0) + 1;
         });
@@ -319,9 +343,9 @@ function renderTopProducts() {
                 <div class="flex-between" style="padding: 0.5rem; background: var(--bg-hover); border-radius: 0.375rem;">
                     <div class="flex items-center gap-2">
                         <span style="width: 20px; height: 20px; background: var(--bg-card); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">${idx + 1}</span>
-                        <span style="font-size: 0.875rem; font-weight: 500;">${name}</span>
+                        <span style="font-size: 0.875rem; font-weight: 500;">${escapeHtml(name)}</span>
                     </div>
-                    <span class="badge badge-primary">${count} reqs</span>
+                    <span class="badge badge-primary">${count} request${count === 1 ? '' : 's'}</span>
                 </div>
             `).join('')}
         </div>
@@ -364,14 +388,14 @@ function renderMaterialsTable(filteredData = null) {
         const brand = prod?.brand || '';
         const spec = prod?.specification || '';
         const uom = prod?.uom || '';
-        const meta = [brand, spec].filter(Boolean).join(' · ');
+        const meta = [brand, spec].filter(Boolean).map(escapeHtml).join(' · ');
         const id = `mat-admin-${idx}`;
         const subRows = group.entries.map(({ item, enquiry }) => {
             const displayStatus = getEnquiryDisplayStatus({ items: [item], status: item.status });
             return `<tr style="background:var(--bg-secondary)">
                 <td style="padding-left:2.5rem;font-size:0.8rem;color:var(--primary);font-weight:500">${enquiry.enquiryNumber}</td>
-                <td style="font-size:0.8rem">${enquiry.customerId?.name || '—'}<br><span class="text-muted" style="font-size:0.72rem">${enquiry.customerId?.contactPerson || ''}</span></td>
-                <td style="font-size:0.8rem">${item.quantity} ${uom}</td>
+                <td style="font-size:0.8rem">${escapeHtml(enquiry.customerId?.name) || '—'}<br><span class="text-muted" style="font-size:0.72rem">${escapeHtml(enquiry.customerId?.contactPerson) || ''}</span></td>
+                <td style="font-size:0.8rem">${item.quantity} ${escapeHtml(uom)}</td>
                 <td style="font-size:0.8rem">${formatDate(enquiry.createdAt)}</td>
                 <td>${getStatusBadge(item.status)}</td>
                 <td></td>
@@ -381,12 +405,12 @@ function renderMaterialsTable(filteredData = null) {
         return `<tr id="${id}-row" onclick="toggleAdminMaterialRow('${id}')" style="cursor:pointer">
             <td><div style="display:flex;align-items:center;gap:0.5rem">
                 <i class="ph ph-caret-right" id="chevron-${id}" style="font-size:0.85rem;color:var(--text-muted);transition:transform 0.2s"></i>
-                <span style="font-weight:600">${name}</span>
+                <span style="font-weight:600">${escapeHtml(name)}</span>
             </div>
             ${meta ? `<div style="font-size:0.75rem;color:var(--text-muted);padding-left:1.5rem">${meta}</div>` : ''}</td>
             <td colspan="2" style="color:var(--text-muted);font-size:0.82rem">${group.entries.map(e => e.enquiry.customerId?.name).filter((v,i,a)=>a.indexOf(v)===i).slice(0,2).join(', ')}${group.entries.length > 2 ? '…' : ''}</td>
             <td style="font-size:0.82rem">${group.entries.length} enquir${group.entries.length===1?'y':'ies'}</td>
-            <td><span class="material-stat-chip">${group.totalQty} ${uom}</span></td>
+            <td><span class="material-stat-chip">${group.totalQty} ${escapeHtml(uom)}</span></td>
             <td></td>
             <td></td>
         </tr>
@@ -416,14 +440,14 @@ function renderItemsTableView(filteredData = null) {
             const uom = prod?.uom || '';
             rows.push(`<tr>
                 <td>
-                    <div style="font-weight:600;font-size:0.82rem">${prod?.materialName || '—'}</div>
-                    ${(prod?.brand || prod?.specification) ? `<div style="font-size:0.72rem;color:var(--text-muted)">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+                    <div style="font-weight:600;font-size:0.82rem">${escapeHtml(prod?.materialName) || '—'}</div>
+                    ${(prod?.brand || prod?.specification) ? `<div style="font-size:0.72rem;color:var(--text-muted)">${[prod.brand, prod.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
                 </td>
                 <td style="font-family:monospace;font-size:0.78rem;color:var(--primary);font-weight:600">${enq.enquiryNumber}</td>
-                <td><div style="font-size:0.82rem;font-weight:500">${enq.customerId?.name || '—'}</div>
-                    <div style="font-size:0.72rem;color:var(--text-muted)">${enq.customerId?.contactPerson || ''}</div></td>
-                <td style="white-space:nowrap;font-size:0.82rem">${item.quantity} ${uom}</td>
-                <td style="font-size:0.8rem">${item.assignedTo?.name ? `<span class="badge badge-info">${item.assignedTo.name}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td><div style="font-size:0.82rem;font-weight:500">${escapeHtml(enq.customerId?.name) || '—'}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)">${escapeHtml(enq.customerId?.contactPerson) || ''}</div></td>
+                <td style="white-space:nowrap;font-size:0.82rem">${item.quantity} ${escapeHtml(uom)}</td>
+                <td style="font-size:0.8rem">${item.assignedTo?.name ? `<span class="badge badge-info">${escapeHtml(item.assignedTo.name)}</span>` : '<span class="text-muted">—</span>'}</td>
                 <td>${getStatusBadge(item.status)}</td>
                 <td style="font-size:0.78rem;color:var(--text-muted)">${formatDate(enq.createdAt)}</td>
                 <td><button class="btn btn-sm btn-secondary" onclick="viewEnquiryDetails('${enq._id}')">View</button></td>
@@ -458,10 +482,10 @@ function renderEnquiriesTable(filteredData = null) {
         <tr>
             <td><span style="font-weight: 500; color: var(--primary);">${enq.enquiryNumber}</span></td>
             <td>
-                <div style="font-weight: 500;">${enq.customerId?.name || 'Unknown'}</div>
-                <div class="text-muted" style="font-size: 0.75rem;">${enq.customerId?.contactPerson || ''}</div>
+                <div style="font-weight: 500;">${escapeHtml(enq.customerId?.name) || 'Unknown'}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">${escapeHtml(enq.customerId?.contactPerson) || ''}</div>
             </td>
-            <td>${enq.items?.length || 0} items</td>
+            <td>${enq.items?.length || 0} item${(enq.items?.length || 0) === 1 ? '' : 's'}</td>
             <td>${formatDate(enq.createdAt)}</td>
             <td>${getStatusBadge(displayStatus)}</td>
             <td>
@@ -479,27 +503,22 @@ function renderEnquiriesTable(filteredData = null) {
     `}).join('');
 }
 
+// Where an enquiry really is, from its items (the badge names are the same ones every other screen uses)
 function getEnquiryDisplayStatus(enq) {
     if (enq.status === 'completed') return 'completed';
-    if (!enq.items || enq.items.length === 0) return 'pending';
-
-    const statuses = enq.items.map(i => i.status);
-    
-    // If all items are completed, the enquiry is completed (already handled above but for safety)
-    if (statuses.every(s => s === 'completed')) return 'completed';
-    
-    // If any item is pending or assigned (not yet quoted), it's pending
-    if (statuses.some(s => s === 'pending' || s === 'assigned')) return 'pending';
-    
-    // If all items are at least vendor_quoted, but some are not yet sales_priced
-    if (statuses.every(s => ['vendor_quoted', 'sales_priced', 'completed'].includes(s))) {
-        if (statuses.some(s => s === 'vendor_quoted')) return 'vendor_quoted';
-        return 'sales_priced';
-    }
-    
-    return 'pending';
+    if (enq.status === 'unsuccessful' || enq.status === 'closed') return 'unsuccessful';
+    const statuses = (enq.items || []).map(i => i.status);
+    if (statuses.length === 0) return 'unassigned';
+    const open = statuses.filter(s => !['completed', 'unsuccessful'].includes(s));
+    if (open.length === 0) return statuses.every(s => s === 'unsuccessful') ? 'unsuccessful' : 'completed';
+    if (open.some(s => s === 'in_sales_query')) return 'in_sales_query';                                   // a question is waiting for sales
+    if (open.every(s => ['unassigned', 'pending'].includes(s))) return 'unassigned';                        // nobody has started
+    if (open.some(s => ['unassigned', 'pending', 'assigned', 'sales_query_resolved'].includes(s))) return 'assigned'; // work in hand
+    if (open.some(s => s === 'vendor_quoted')) return 'vendor_quoted';                                      // prices in, selling price to set
+    return 'priced';
 }
 
+const filterEnquiriesTypingDebounced = debounce(() => filterEnquiries());
 function filterEnquiries(status = null) {
     const searchTerm = document.getElementById('enquirySearch').value.toLowerCase();
     const statusFilter = status || document.getElementById('statusFilter').value;
@@ -538,11 +557,11 @@ function viewEnquiryDetails(id) {
         <div class="flex-between mb-4" style="padding: 1rem; background: var(--bg-hover); border-radius: 8px;">
             <div>
                 <div class="text-muted text-xs">Customer</div>
-                <div style="font-weight: 600;">${enq.customerId?.name}</div>
+                <div style="font-weight: 600;">${escapeHtml(enq.customerId?.name)}</div>
             </div>
             <div>
                 <div class="text-muted text-xs">Created By</div>
-                <div style="font-weight: 600;">${enq.createdBy?.name}</div>
+                <div style="font-weight: 600;">${escapeHtml(enq.createdBy?.name)}</div>
             </div>
             <div>
                 <div class="text-muted text-xs">Current Status</div>
@@ -567,12 +586,12 @@ function viewEnquiryDetails(id) {
                     ${enq.items?.map(item => `
                         <tr>
                             <td>
-                                <div style="font-weight: 500;">${item.productId?.materialName || 'Custom Item'}</div>
-                                <div class="text-muted" style="font-size: 0.7rem;">${item.productId?.description || ''}</div>
+                                <div style="font-weight: 500;">${escapeHtml(item.productId?.materialName) || 'Custom Item'}</div>
+                                <div class="text-muted" style="font-size: 0.7rem;">${escapeHtml(item.productId?.description) || ''}</div>
                             </td>
-                            <td>${item.quantity} ${item.productId?.uom || 'Unit'}</td>
+                            <td>${item.quantity} ${escapeHtml(item.productId?.uom) || 'Unit'}</td>
                             <td>
-                                <div style="font-size: 0.85rem;">${item.assignedTo?.name || '<span class="text-danger">Unassigned</span>'}</div>
+                                <div style="font-size: 0.85rem;">${escapeHtml(item.assignedTo?.name) || '<span class="text-danger">Unassigned</span>'}</div>
                             </td>
                             <td>
                                 ${item.selectedVendorQuoteId ? 
@@ -637,7 +656,7 @@ async function openAdminChat(enquiryId, enquiryNumber) {
     loadMessages(enquiryId);
     
     if (chatInterval) clearInterval(chatInterval);
-    chatInterval = setInterval(() => loadMessages(enquiryId), 5000); // Admin can have slower polling
+    chatInterval = setInterval(() => { if (!document.hidden) loadMessages(enquiryId); }, 5000); // Admin can have slower polling
 }
 
 function closeChat() {
@@ -667,9 +686,9 @@ async function loadMessages(enquiryId) {
             return `
                 <div class="chat-message ${isSourcing ? 'received' : 'sent'}" style="margin-bottom: 0.5rem;">
                     <div style="font-weight: 600; font-size: 0.7rem; margin-bottom: 0.2rem; opacity: 0.9;">
-                        ${m.senderId.name} (${senderRole})
+                        ${escapeHtml(m.senderId.name)} (${escapeHtml(senderRole)})
                     </div>
-                    <div>${m.message}</div>
+                    <div>${escapeHtml(m.message)}</div>
                     <div class="message-info">${formatDate(m.createdAt)} ${new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                 </div>
             `;

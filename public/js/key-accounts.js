@@ -19,11 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = checkAuth();
     if (!user) return;
 
-    if (!hasAnyPermission(['enquiry.view.assigned_customers', 'enquiry.view.all'])) {
-        showToast('You do not have permission to view this page', 'error');
-        setTimeout(() => window.location.href = '/', 1500);
-        return;
-    }
+    if (!requirePageAccess('/key-accounts.html')) return;
 
     const navName = document.getElementById('navUserName');
     const navRole = document.getElementById('navUserRole');
@@ -79,7 +75,7 @@ async function fetchEnquiriesForStage(stage) {
 
 async function loadKamUsers() {
     try {
-        const users = await apiCall('/users/by-category?category=key_accounts');
+        const users = await apiCall('/users/by-permission?permission=enquiry.view.assigned_customers');
         kamUsers = users || [];
         const sel = document.getElementById('kamFilter');
         if (!sel) return;
@@ -148,6 +144,7 @@ function switchMainTab(tab) {
 
 // ── Client Portfolio Rendering ────────────────────────────────────────────────
 
+const renderClientsTabDebounced = debounce(() => renderClientsTab());
 function renderClientsTab() {
     const grid = document.getElementById('clientsGrid');
     if (!grid) return;
@@ -167,8 +164,8 @@ function renderClientsTab() {
     if (!list.length) {
         grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
             <i class="ph ph-buildings"></i>
-            <p style="font-weight:600;margin-bottom:0.5rem">${search ? 'No matching clients' : 'No clients assigned'}</p>
-            <p style="font-size:0.85rem">${search ? 'Try a different search term.' : 'Clients assigned to you will appear here.'}</p>
+            <p style="font-weight:600;margin-bottom:0.5rem">${search ? 'No matching customers' : 'No customers assigned'}</p>
+            <p style="font-size:0.85rem">${search ? 'Try a different search term.' : 'Customers assigned to you will appear here.'}</p>
         </div>`;
         return;
     }
@@ -177,7 +174,7 @@ function renderClientsTab() {
         const stats = getClientStats(c._id);
         const initial = (c.name || '?').charAt(0).toUpperCase();
         const kamBadge = isManager && c.assignedKAM
-            ? `<span style="font-size:0.72rem;background:var(--primary-light);color:var(--primary-dark);padding:0.2rem 0.5rem;border-radius:999px;white-space:nowrap;border:1px solid var(--primary)">${c.assignedKAM.name}</span>`
+            ? `<span style="font-size:0.72rem;background:var(--primary-light);color:var(--primary-dark);padding:0.2rem 0.5rem;border-radius:999px;white-space:nowrap;border:1px solid var(--primary)">${escapeHtml(c.assignedKAM.name)}</span>`
             : '';
 
         const lastActivity = stats.lastDate
@@ -188,13 +185,13 @@ function renderClientsTab() {
             : '—';
 
         return `
-        <div class="client-card" onclick="viewClientEnquiries('${c._id}', '${c.name.replace(/'/g, "\\'")}')">
+        <div class="client-card" onclick="viewClientEnquiries('${c._id}', ${jsArg(c.name)})">
             <div class="client-card-header">
                 <div class="client-avatar">${initial}</div>
                 <div class="client-info">
-                    <div class="client-name">${c.name}</div>
-                    ${c.contactPerson ? `<div class="client-contact"><i class="ph ph-user" style="font-size:0.72rem"></i> ${c.contactPerson}</div>` : ''}
-                    ${c.email ? `<div class="client-contact" style="color:var(--text-muted)"><i class="ph ph-envelope" style="font-size:0.72rem"></i> ${c.email}</div>` : ''}
+                    <div class="client-name">${escapeHtml(c.name)}</div>
+                    ${c.contactPerson ? `<div class="client-contact"><i class="ph ph-user" style="font-size:0.72rem"></i> ${escapeHtml(c.contactPerson)}</div>` : ''}
+                    ${c.email ? `<div class="client-contact" style="color:var(--text-muted)"><i class="ph ph-envelope" style="font-size:0.72rem"></i> ${escapeHtml(c.email)}</div>` : ''}
                 </div>
                 ${kamBadge}
             </div>
@@ -216,7 +213,7 @@ function renderClientsTab() {
                     <div class="client-stat-lbl">Last Activity</div>
                 </div>
                 <div style="margin-left:auto;align-self:center">
-                    <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();viewClientEnquiries('${c._id}', '${c.name.replace(/'/g, "\\'")}')">
+                    <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();viewClientEnquiries('${c._id}', ${jsArg(c.name)})">
                         <i class="ph ph-arrow-right"></i> View
                     </button>
                 </div>
@@ -282,17 +279,17 @@ function renderTeamTab() {
         const roleColor = kae.roleId?.color || '#3B82F6';
 
         return `
-        <div class="client-card" onclick="viewKAEEnquiries('${kae._id}', '${kae.name.replace(/'/g, "\\'")}')">
+        <div class="client-card" onclick="viewKAEEnquiries('${kae._id}', ${jsArg(kae.name)})">
             <div class="client-card-header">
                 <div class="client-avatar" style="background:linear-gradient(135deg,${roleColor},${roleColor}cc)">${initial}</div>
                 <div class="client-info">
-                    <div class="client-name">${kae.name}</div>
+                    <div class="client-name">${escapeHtml(kae.name)}</div>
                     <div class="client-contact">
-                        <i class="ph ph-envelope" style="font-size:0.72rem"></i> ${kae.email}
+                        <i class="ph ph-envelope" style="font-size:0.72rem"></i> ${escapeHtml(kae.email)}
                     </div>
                     <div style="margin-top:0.3rem">
                         <span style="font-size:0.72rem;background:${roleColor}18;color:${roleColor};padding:0.15rem 0.5rem;border-radius:999px;border:1px solid ${roleColor}44;font-weight:600">
-                            ${kae.roleId?.name || 'KA Entry'}
+                            ${escapeHtml(kae.roleId?.name) || 'KA Entry'}
                         </span>
                     </div>
                 </div>
@@ -300,7 +297,7 @@ function renderTeamTab() {
             <div class="client-stats">
                 <div class="client-stat">
                     <div class="client-stat-val">${stats.clients}</div>
-                    <div class="client-stat-lbl">Clients</div>
+                    <div class="client-stat-lbl">Customers</div>
                 </div>
                 <div class="client-stat">
                     <div class="client-stat-val" style="color:#C2410C">${stats.active}</div>
@@ -315,7 +312,7 @@ function renderTeamTab() {
                     <div class="client-stat-lbl">Total</div>
                 </div>
                 <div style="margin-left:auto;align-self:center">
-                    <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();viewKAEEnquiries('${kae._id}', '${kae.name.replace(/'/g, "\\'")}')">
+                    <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();viewKAEEnquiries('${kae._id}', ${jsArg(kae.name)})">
                         <i class="ph ph-arrow-right"></i> View
                     </button>
                 </div>
@@ -375,6 +372,7 @@ function switchTab(tab) {
     renderCurrentTab();
 }
 
+const applyFiltersDebounced = debounce(() => applyFilters());
 function applyFilters() {
     renderCurrentTab();
 }
@@ -462,15 +460,15 @@ function renderMaterialView() {
         const brand = prod?.brand || '';
         const spec = prod?.specification || '';
         const uom = prod?.uom || '';
-        const meta = [brand, spec].filter(Boolean).join(' · ');
+        const meta = [brand, spec].filter(Boolean).map(escapeHtml).join(' · ');
         const id = `mat-kam-${idx}`;
 
         const stageLabel = { new: 'New', open: 'Open', updated: 'Updated', completed: 'Completed' };
         const rows = group.entries.map(({ item, enquiry }) => {
             return `<tr>
                 <td><span style="font-weight:500;color:var(--primary)">${enquiry.enquiryNumber}</span></td>
-                <td>${enquiry.customerId?.name || '—'}</td>
-                <td>${item.quantity} ${uom}</td>
+                <td>${escapeHtml(enquiry.customerId?.name) || '—'}</td>
+                <td>${item.quantity} ${escapeHtml(uom)}</td>
                 <td><span class="stage-chip stage-${enquiry.stage}">${stageLabel[enquiry.stage] || enquiry.stage}</span></td>
                 <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(enquiry.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
                 <td>
@@ -487,12 +485,12 @@ function renderMaterialView() {
             <div class="material-card-header" onclick="toggleMaterialCard('${id}')">
                 <div class="material-icon"><i class="ph ph-cube"></i></div>
                 <div>
-                    <div class="material-name">${name}</div>
+                    <div class="material-name">${escapeHtml(name)}</div>
                     ${meta ? `<div class="material-meta-text">${meta}</div>` : ''}
                 </div>
                 <div class="material-stats">
                     <span class="material-stat-chip">${group.entries.length} enquir${group.entries.length === 1 ? 'y' : 'ies'}</span>
-                    <span class="material-stat-chip">${group.totalQty} ${uom}</span>
+                    <span class="material-stat-chip">${group.totalQty} ${escapeHtml(uom)}</span>
                 </div>
                 <i class="ph ph-caret-down material-chevron"></i>
             </div>
@@ -535,12 +533,12 @@ function renderItemsView() {
             const uom = prod?.uom || '';
             rows.push(`<tr>
                 <td>
-                    <div class="mat-primary">${prod?.materialName || '—'}</div>
-                    ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).join(' · ')}</div>` : ''}
+                    <div class="mat-primary">${escapeHtml(prod?.materialName) || '—'}</div>
+                    ${(prod?.brand || prod?.specification) ? `<div class="mat-meta">${[prod.brand, prod.specification].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
                 </td>
                 <td><span class="enq-ref">${enq.enquiryNumber}</span></td>
-                <td style="font-size:0.82rem">${enq.customerId?.name || '—'}</td>
-                <td style="white-space:nowrap">${item.quantity} ${uom}</td>
+                <td style="font-size:0.82rem">${escapeHtml(enq.customerId?.name) || '—'}</td>
+                <td style="white-space:nowrap">${item.quantity} ${escapeHtml(uom)}</td>
                 <td><span class="stage-chip stage-${enq.stage}">${stageLabel[enq.stage] || enq.stage}</span></td>
                 <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(enq.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
                 <td><div class="flex gap-1">
@@ -600,11 +598,11 @@ function renderEnquiryCard(enq) {
         <div class="enq-card-head" onclick="openDetail('${enq._id}')">
             <div class="enq-head-left">
                 <span class="enq-num-pill"><i class="ph ph-hash"></i>${enq.enquiryNumber}</span>
-                <div class="enq-customer">${customer}</div>
+                <div class="enq-customer">${escapeHtml(customer)}</div>
                 <div class="enq-meta">
                     <span><i class="ph ph-calendar-blank"></i>${createdAt}</span>
                     <span>·</span>
-                    <span><i class="ph ph-user"></i>${createdBy}</span>
+                    <span><i class="ph ph-user"></i>${escapeHtml(createdBy)}</span>
                     <span>·</span>
                     <span><i class="ph ph-cube"></i>${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
                 </div>
@@ -662,7 +660,7 @@ async function openDetail(enquiryId) {
             dlBtn.style.display = hasPermission('quotation.download') && enq.stage === 'completed' ? '' : 'none';
         }
     } catch (err) {
-        body.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Failed to load: ${err.message}</div>`;
+        body.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Failed to load: ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -697,19 +695,19 @@ function renderDetailBody(enq) {
         const uom = prod.uom || '';
         const vendorPrice = item.selectedVendorQuoteId?.vendorPrice;
         const salesPrice = item.salesPrice;
-        const matMeta = [prod.brand, prod.specification].filter(Boolean).join(' · ');
+        const matMeta = [prod.brand, prod.specification].filter(Boolean).map(escapeHtml).join(' · ');
 
         return `<tr>
             <td style="padding:0.75rem;border-bottom:1px solid var(--border)">
-                <div style="font-weight:600;font-size:0.875rem">${prod.materialName || '—'}</div>
+                <div style="font-weight:600;font-size:0.875rem">${escapeHtml(prod.materialName) || '—'}</div>
                 ${matMeta ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.1rem">${matMeta}</div>` : ''}
             </td>
-            <td style="padding:0.75rem;border-bottom:1px solid var(--border);white-space:nowrap">${item.quantity} <span style="color:var(--text-muted);font-size:0.78rem">${uom}</span></td>
-            <td style="padding:0.75rem;border-bottom:1px solid var(--border);font-size:0.82rem">${item.assignedTo?.name || '<span style="color:var(--text-muted)">—</span>'}</td>
+            <td style="padding:0.75rem;border-bottom:1px solid var(--border);white-space:nowrap">${item.quantity} <span style="color:var(--text-muted);font-size:0.78rem">${escapeHtml(uom)}</span></td>
+            <td style="padding:0.75rem;border-bottom:1px solid var(--border);font-size:0.82rem">${escapeHtml(item.assignedTo?.name) || '<span style="color:var(--text-muted)">—</span>'}</td>
             <td style="padding:0.75rem;border-bottom:1px solid var(--border);text-align:right;font-size:0.85rem">${vendorPrice ? '₹' + vendorPrice.toLocaleString('en-IN') : '<span style="color:var(--text-muted)">—</span>'}</td>
             <td style="padding:0.75rem;border-bottom:1px solid var(--border);text-align:right;font-weight:600;font-size:0.85rem">${salesPrice ? '₹' + salesPrice.toLocaleString('en-IN') : '<span style="color:var(--text-muted)">—</span>'}</td>
             <td style="padding:0.75rem;border-bottom:1px solid var(--border)">
-                <span style="font-size:0.7rem;font-weight:700;color:${sm.fg};background:${sm.bg};padding:0.2rem 0.5rem;border-radius:999px">${sm.label}</span>
+                <span style="font-size:0.7rem;font-weight:700;color:${sm.fg};background:${sm.bg};padding:0.2rem 0.5rem;border-radius:999px">${escapeHtml(sm.label)}</span>
             </td>
         </tr>`;
     }).join('');
@@ -718,10 +716,10 @@ function renderDetailBody(enq) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.875rem;margin-bottom:1.5rem">
             <div style="background:var(--bg-secondary);border-radius:0.75rem;padding:1rem">
                 <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem"><i class="ph ph-buildings"></i> Customer</div>
-                <div style="font-weight:700;font-size:0.95rem">${cust.name || '—'}</div>
-                ${cust.contactPerson ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.2rem"><i class="ph ph-user" style="font-size:0.75rem"></i> ${cust.contactPerson}</div>` : ''}
-                ${cust.email ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.1rem"><i class="ph ph-envelope" style="font-size:0.75rem"></i> ${cust.email}</div>` : ''}
-                ${cust.phone ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.1rem"><i class="ph ph-phone" style="font-size:0.75rem"></i> ${cust.phone}</div>` : ''}
+                <div style="font-weight:700;font-size:0.95rem">${escapeHtml(cust.name) || '—'}</div>
+                ${cust.contactPerson ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.2rem"><i class="ph ph-user" style="font-size:0.75rem"></i> ${escapeHtml(cust.contactPerson)}</div>` : ''}
+                ${cust.email ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.1rem"><i class="ph ph-envelope" style="font-size:0.75rem"></i> ${escapeHtml(cust.email)}</div>` : ''}
+                ${cust.phone ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.1rem"><i class="ph ph-phone" style="font-size:0.75rem"></i> ${escapeHtml(cust.phone)}</div>` : ''}
             </div>
             <div style="background:var(--bg-secondary);border-radius:0.75rem;padding:1rem">
                 <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem"><i class="ph ph-info"></i> Enquiry Info</div>
@@ -730,11 +728,11 @@ function renderDetailBody(enq) {
                     ${enq.status === 'unsuccessful' ? `<span style="font-size:0.8rem;font-weight:700;color:#991b1b;background:#fef2f2;padding:0.2rem 0.6rem;border-radius:999px">Unsuccessful</span>` : ''}
                 </div>
                 <div style="font-size:0.82rem;color:var(--text-secondary)"><i class="ph ph-calendar-blank" style="font-size:0.75rem"></i> ${createdAt}</div>
-                <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.2rem"><i class="ph ph-user" style="font-size:0.75rem"></i> ${enq.createdBy?.name || '—'}</div>
+                <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.2rem"><i class="ph ph-user" style="font-size:0.75rem"></i> ${escapeHtml(enq.createdBy?.name) || '—'}</div>
                 ${totalSales ? `<div style="font-size:0.9rem;font-weight:700;color:var(--primary);margin-top:0.5rem">Total: ₹${totalSales.toLocaleString('en-IN')}</div>` : ''}
             </div>
         </div>
-        ${enq.closeReason ? `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:0.625rem;padding:0.75rem 1rem;margin-bottom:1.25rem;font-size:0.85rem;color:#92400e"><i class="ph ph-warning-circle"></i> <strong>Close Reason:</strong> ${enq.closeReason}</div>` : ''}
+        ${enq.closeReason ? `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:0.625rem;padding:0.75rem 1rem;margin-bottom:1.25rem;font-size:0.85rem;color:#92400e"><i class="ph ph-warning-circle"></i> <strong>Close Reason:</strong> ${escapeHtml(enq.closeReason)}</div>` : ''}
         <div style="font-weight:700;margin-bottom:0.75rem;font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
             <i class="ph ph-cube" style="color:var(--primary)"></i> Materials
             <span style="font-size:0.75rem;font-weight:600;color:var(--text-muted)">(${enq.items?.length || 0})</span>
@@ -770,6 +768,7 @@ async function downloadDetailQuotation() {
 
 async function downloadQuotation(enquiryId, enquiryNumber) {
     try {
+        requireLibs(['jspdf', 'autotable']);
         showToast('Generating PDF…', 'info');
         const enq = currentDetailEnquiry || await apiCall(`/enquiries/${enquiryId}`);
 
@@ -849,15 +848,15 @@ async function loadQueryThread(enquiryId) {
             return `
             <div style="display:flex;flex-direction:column;align-items:${mine ? 'flex-end' : 'flex-start'}">
                 <div class="query-msg ${mine ? 'mine' : 'theirs'}">
-                    ${!mine ? `<div style="font-size:0.7rem;font-weight:700;margin-bottom:0.25rem;opacity:0.75">${senderName}</div>` : ''}
-                    ${q.message}
+                    ${!mine ? `<div style="font-size:0.7rem;font-weight:700;margin-bottom:0.25rem;opacity:0.75">${escapeHtml(senderName)}</div>` : ''}
+                    ${escapeHtml(q.message)}
                     <div class="query-meta">${date}, ${time}</div>
                 </div>
             </div>`;
         }).join('');
         thread.scrollTop = thread.scrollHeight;
     } catch (err) {
-        thread.innerHTML = `<div style="color:var(--danger);padding:1rem;font-size:0.875rem">${err.message}</div>`;
+        thread.innerHTML = `<div style="color:var(--danger);padding:1rem;font-size:0.875rem">${escapeHtml(err.message)}</div>`;
     }
 }
 

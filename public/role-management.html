@@ -2,194 +2,124 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Role Management – Precise Procure</title>
+    <title>Roles &amp; Access – Precise Procure</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/premium-ui.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
-        /* ── Permission Checklist ─────────────────────────────────── */
-        .permission-group {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 0.75rem;
-            overflow: hidden;
-            margin-bottom: 0.75rem;
-        }
-        .permission-group-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            background: var(--bg-tertiary);
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
-            user-select: none;
-            gap: 0.5rem;
-        }
-        .permission-group-header:hover { background: var(--primary-light); }
-        .permission-group-header .group-title {
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .permission-group-body {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 0;
-        }
-        .perm-check {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.6rem;
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--border-light);
-            transition: background var(--transition-fast);
-            cursor: pointer;
-        }
-        .perm-check:hover { background: rgba(59,159,217,0.04); }
-        .perm-check:last-child { border-bottom: none; }
-        .perm-check input[type="checkbox"] {
-            margin-top: 2px;
-            accent-color: var(--primary);
-            width: 15px;
-            height: 15px;
-            flex-shrink: 0;
-            cursor: pointer;
-        }
-        .perm-check label {
-            cursor: pointer;
-            line-height: 1.4;
-        }
-        .perm-key {
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-        }
-        .perm-desc {
-            font-size: 0.73rem;
-            color: var(--text-muted);
-        }
+        /* ── Intro ────────────────────────────────────────────────── */
+        .rm-steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0.75rem; margin-bottom:1.5rem; }
+        .rm-step { display:flex; gap:0.75rem; align-items:flex-start; padding:0.85rem 1rem; border-radius:0.85rem;
+                   background:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.7); box-shadow:0 2px 10px rgba(0,0,0,0.04); }
+        .rm-step-num { flex-shrink:0; width:1.6rem; height:1.6rem; border-radius:50%; background:var(--primary); color:#fff;
+                       display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; }
+        .rm-step b { display:block; font-size:0.85rem; color:var(--text-primary); }
+        .rm-step span { font-size:0.78rem; color:var(--text-muted); line-height:1.4; }
+        .rm-step a { color:var(--primary); font-weight:600; text-decoration:none; }
 
-        /* ── Role Cards ──────────────────────────────────────────── */
-        .roles-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.25rem;
-        }
-        .role-card {
-            background: rgba(255,255,255,0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.6);
-            border-radius: 1rem;
-            padding: 1.25rem;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            transition: transform var(--transition-base), box-shadow var(--transition-base);
-            position: relative;
-            overflow: hidden;
-        }
-        .role-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(0,0,0,0.1);
-        }
-        .role-card-accent {
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-        }
-        .role-card-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-        }
-        .role-name {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            line-height: 1.3;
-        }
-        .role-description {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 0.75rem;
-            line-height: 1.5;
-        }
-        .role-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-            margin-bottom: 0.75rem;
-        }
-        .role-perm-count {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .system-badge {
-            font-size: 0.7rem;
-            background: #f1f5f9;
-            color: #64748b;
-            padding: 0.15rem 0.5rem;
-            border-radius: 999px;
-            border: 1px solid #e2e8f0;
-        }
-        .role-card-actions {
-            display: flex;
-            gap: 0.5rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid var(--border-light);
-        }
+        /* ── Role cards ───────────────────────────────────────────── */
+        .roles-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:1.25rem; }
+        .role-card { background:rgba(255,255,255,0.88); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+                     border:1px solid rgba(255,255,255,0.7); border-radius:1rem; padding:1.15rem 1.25rem 1rem;
+                     box-shadow:0 4px 16px rgba(0,0,0,0.06); position:relative; overflow:hidden; display:flex; flex-direction:column; }
+        .role-card-accent { position:absolute; top:0; left:0; right:0; height:4px; }
+        .role-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; margin-bottom:0.35rem; }
+        .role-name { font-size:1rem; font-weight:700; color:var(--text-primary); line-height:1.3; display:flex; align-items:center; gap:0.5rem; }
+        .role-desc { font-size:0.8rem; color:var(--text-muted); line-height:1.45; margin-bottom:0.75rem; min-height:1.1rem; }
+        .rm-chips { display:flex; flex-wrap:wrap; gap:0.35rem; margin-bottom:0.75rem; }
+        .rm-chip { display:inline-flex; align-items:center; gap:0.3rem; font-size:0.7rem; padding:0.15rem 0.55rem; border-radius:999px;
+                   background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; white-space:nowrap; }
+        .rm-chip.lead { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+        .rm-chip.warn { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+        .rm-lines { display:flex; flex-direction:column; gap:0.45rem; margin-bottom:0.85rem; flex:1; }
+        .rm-line { display:flex; gap:0.5rem; font-size:0.78rem; line-height:1.4; color:var(--text-secondary); }
+        .rm-line i { flex-shrink:0; margin-top:0.12rem; color:var(--primary); }
+        .rm-line b { color:var(--text-primary); font-weight:600; }
+        .rm-line .rm-text { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .rm-lines.open .rm-text { -webkit-line-clamp:unset; }
+        .rm-more { background:none; border:none; padding:0; color:var(--primary); font-size:0.74rem; cursor:pointer; text-align:left; }
+        .role-foot { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; padding:0.6rem 0; border-top:1px solid var(--border-light);
+                     font-size:0.76rem; color:var(--text-muted); }
+        .role-foot button { background:none; border:none; padding:0; font:inherit; color:var(--primary); font-weight:600; cursor:pointer; }
+        .role-actions { display:flex; gap:0.5rem; padding-top:0.6rem; border-top:1px solid var(--border-light); }
 
-        /* ── Color Picker Swatches ───────────────────────────────── */
-        .color-swatches {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.25rem;
-        }
-        .color-swatch {
-            width: 28px; height: 28px;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: transform 0.15s, border-color 0.15s;
-        }
-        .color-swatch:hover { transform: scale(1.15); }
-        .color-swatch.selected { border-color: var(--text-primary); transform: scale(1.1); }
+        /* ── Editor ───────────────────────────────────────────────── */
+        .modal-lg .modal-content { max-width:1080px; width:calc(100% - 2rem); max-height:92vh; display:flex; flex-direction:column; }
+        .modal-lg .modal-body { overflow-y:auto; }
+        .rm-editor { display:grid; grid-template-columns:minmax(0,1fr) 310px; gap:1.5rem; align-items:start; }
+        @media (max-width: 880px) { .rm-editor { grid-template-columns:1fr; } .rm-preview { position:static !important; } }
+        .rm-block { margin-bottom:1.5rem; }
+        .rm-block-title { display:flex; align-items:center; gap:0.5rem; font-size:0.95rem; font-weight:700; color:var(--text-primary); margin-bottom:0.2rem; }
+        .rm-block-title .rm-num { width:1.4rem; height:1.4rem; border-radius:50%; background:var(--primary-light); color:var(--primary); font-size:0.75rem;
+                                  display:flex; align-items:center; justify-content:center; }
+        .rm-block-help { font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem; line-height:1.45; }
+        .rm-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        @media (max-width: 600px) { .rm-grid2 { grid-template-columns:1fr; } }
+        .rm-hint { font-size:0.76rem; color:var(--text-muted); margin-top:0.3rem; line-height:1.4; }
+        .rm-field label { font-weight:600; font-size:0.85rem; }
+        .rm-inline-check { display:flex; gap:0.6rem; align-items:flex-start; padding:0.7rem 0.85rem; border:1px solid var(--border); border-radius:0.65rem;
+                           background:var(--bg-secondary); cursor:pointer; margin-top:0.85rem; }
+        .rm-inline-check input { margin-top:0.2rem; accent-color:var(--primary); width:16px; height:16px; }
+        .rm-inline-check b { display:block; font-size:0.85rem; color:var(--text-primary); }
+        .rm-inline-check span { font-size:0.76rem; color:var(--text-muted); line-height:1.4; }
 
-        /* ── Modal overrides ────────────────────────────────────── */
-        .modal-lg .modal-content {
-            max-width: 780px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .select-all-btn {
-            font-size: 0.72rem;
-            color: var(--primary);
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            text-decoration: underline;
-        }
+        .rm-section { border:1px solid var(--border); border-radius:0.8rem; overflow:hidden; margin-bottom:0.85rem; background:#fff; }
+        .rm-section-head { padding:0.65rem 1rem; background:var(--bg-tertiary); border-bottom:1px solid var(--border); }
+        .rm-section-head b { font-size:0.88rem; color:var(--text-primary); }
+        .rm-section-head span { display:block; font-size:0.75rem; color:var(--text-muted); margin-top:0.1rem; }
+        .rm-check { display:flex; gap:0.7rem; align-items:flex-start; padding:0.65rem 1rem; border-bottom:1px solid var(--border-light); cursor:pointer; }
+        .rm-check:last-child { border-bottom:none; }
+        .rm-check:hover { background:rgba(59,159,217,0.04); }
+        .rm-check input { margin-top:0.2rem; accent-color:var(--primary); width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+        .rm-check-label { display:block; font-size:0.86rem; color:var(--text-primary); line-height:1.35; }
+        .rm-check-help { display:block; font-size:0.75rem; color:var(--text-muted); margin-top:0.15rem; line-height:1.4; }
+        .rm-check.disabled, .rm-check.disabled input { cursor:not-allowed; }
+        .rm-check.disabled .rm-check-label { color:var(--text-muted); }
+        .rm-check.included .rm-check-label::after { content:' (included in "Every enquiry")'; font-size:0.72rem; color:var(--text-muted); }
 
-        /* ── Empty State ────────────────────────────────────────── */
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: var(--text-muted);
-        }
-        .empty-state i { font-size: 3rem; opacity: 0.4; margin-bottom: 1rem; display: block; }
+        .rm-matrix { width:100%; border-collapse:collapse; font-size:0.84rem; }
+        .rm-matrix th, .rm-matrix td { padding:0.6rem 0.75rem; border-bottom:1px solid var(--border-light); text-align:center; }
+        .rm-matrix thead th { background:var(--bg-tertiary); font-size:0.75rem; font-weight:600; color:var(--text-secondary); }
+        .rm-matrix thead th:first-child, .rm-matrix tbody th { text-align:left; }
+        .rm-matrix tbody th { font-weight:600; color:var(--text-primary); }
+        .rm-matrix tbody th small { display:block; font-weight:400; color:var(--text-muted); font-size:0.73rem; margin-top:0.1rem; line-height:1.35; }
+        .rm-matrix input { accent-color:var(--primary); width:16px; height:16px; cursor:pointer; }
+        .rm-matrix input:disabled { cursor:not-allowed; }
+        .rm-matrix .sens { color:#b45309; }
+        .rm-tag { display:inline-block; font-size:0.65rem; font-weight:600; padding:0.05rem 0.4rem; border-radius:999px; background:#fffbeb; color:#b45309;
+                  border:1px solid #fde68a; margin-left:0.35rem; vertical-align:middle; }
+
+        .rm-preview { position:sticky; top:0; }
+        .rm-preview-card { border:1px solid var(--border); border-radius:0.9rem; background:linear-gradient(180deg,#fff,#f8fafc); padding:1rem 1.1rem; }
+        .rm-preview-title { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); font-weight:700; margin-bottom:0.6rem; }
+        .rm-badge { display:inline-block; font-size:0.85rem; font-weight:700; padding:0.2rem 0.7rem; border-radius:999px; margin-bottom:0.75rem; border:1px solid; }
+        .rm-preview .rm-lines { margin-bottom:0.6rem; }
+        .rm-preview .rm-line .rm-text { -webkit-line-clamp:unset; display:block; }
+        .rm-start { font-size:0.8rem; color:var(--text-secondary); padding-top:0.6rem; border-top:1px dashed var(--border); margin-top:0.2rem; }
+        .rm-note { display:flex; gap:0.5rem; font-size:0.76rem; line-height:1.4; padding:0.5rem 0.65rem; border-radius:0.55rem; margin-top:0.55rem; }
+        .rm-note.info { background:#eff6ff; color:#1e40af; }
+        .rm-note.warning { background:#fffbeb; color:#92400e; }
+        .rm-note i { flex-shrink:0; margin-top:0.1rem; }
+        .rm-error { display:none; gap:0.6rem; padding:0.75rem 1rem; border-radius:0.65rem; background:#fef2f2; color:#991b1b; border:1px solid #fecaca;
+                    font-size:0.85rem; margin-bottom:1rem; line-height:1.45; }
+        .rm-error.show { display:flex; }
+        .rm-banner { display:flex; gap:0.6rem; padding:0.7rem 0.9rem; border-radius:0.65rem; background:#f1f5f9; color:#334155; font-size:0.8rem; margin-bottom:1rem; line-height:1.45; }
+
+        .color-swatches { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.25rem; }
+        .color-swatch { width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:transform .15s,border-color .15s; }
+        .color-swatch:hover { transform:scale(1.15); }
+        .color-swatch.selected { border-color:var(--text-primary); transform:scale(1.1); }
+
+        .rm-people { list-style:none; margin:0.75rem 0 0; padding:0; max-height:16rem; overflow-y:auto; }
+        .rm-people li { padding:0.5rem 0; border-bottom:1px solid var(--border-light); font-size:0.85rem; }
+        .rm-people li small { display:block; color:var(--text-muted); font-size:0.75rem; }
+        .empty-state { text-align:center; padding:4rem 2rem; color:var(--text-muted); }
+        .empty-state i { font-size:3rem; opacity:0.4; margin-bottom:1rem; display:block; }
     </style>
 </head>
 <body>
@@ -244,7 +174,7 @@
                 <div class="menu-label" style="padding: 0 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Access Control</div>
                 <a href="/role-management.html" class="nav-item active">
                     <i class="ph ph-shield-check"></i>
-                    <span>Role Management</span>
+                    <span>Roles &amp; Access</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -264,108 +194,54 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="header mb-4" style="background:transparent;border:none;padding:0;box-shadow:none">
-                <div class="flex-between">
+                <div class="flex-between" style="flex-wrap:wrap;gap:1rem">
                     <div>
                         <h1 style="font-size:1.75rem;display:flex;align-items:center;gap:0.6rem">
                             <i class="ph ph-shield-check" style="color:var(--primary)"></i>
-                            Role Management
+                            Roles &amp; Access
                         </h1>
-                        <p class="text-muted">Define roles and assign granular permissions to each.</p>
+                        <p class="text-muted">A role decides what a person can see and do in the app.</p>
                     </div>
-                    <button class="btn btn-primary" onclick="openCreateModal()">
-                        <i class="ph ph-plus"></i> Create Role
+                    <button class="btn btn-primary" id="createRoleBtn" onclick="openCreate()" style="display:none">
+                        <i class="ph ph-plus"></i> Create a role
                     </button>
                 </div>
             </div>
 
-            <!-- Info Banner -->
-            <div id="infoBanner" style="display:none;background:linear-gradient(135deg,rgba(59,159,217,0.08),rgba(59,159,217,0.04));border:1px solid rgba(59,159,217,0.25);border-radius:0.75rem;padding:0.875rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem">
-                <i class="ph ph-info" style="color:var(--primary);font-size:1.1rem;flex-shrink:0"></i>
-                <span style="font-size:0.85rem;color:var(--text-secondary)">
-                    System roles (marked with a lock) cannot be deleted but their permissions can be edited.
-                    Custom roles can be fully managed.
-                </span>
+            <div class="rm-steps">
+                <div class="rm-step"><div class="rm-step-num">1</div><div><b>Create a role</b><span>Give it a name, for example "Sales Executive".</span></div></div>
+                <div class="rm-step"><div class="rm-step-num">2</div><div><b>Tick what it allows</b><span>You will see a plain-language summary as you go.</span></div></div>
+                <div class="rm-step"><div class="rm-step-num">3</div><div><b>Give it to people</b><span>Choose the role for each person in <a href="/masters.html?type=employees" id="employeesLink">Employees</a>.</span></div></div>
             </div>
 
-            <!-- Role Cards -->
             <div class="roles-grid" id="rolesGrid">
-                <div class="empty-state">
-                    <div class="spinner"></div>
-                </div>
+                <div class="empty-state" style="grid-column:1/-1"><div class="spinner"></div></div>
             </div>
         </main>
     </div>
 
-    <!-- ── Create / Edit Role Modal ──────────────────────────────────────── -->
+    <!-- ── Create / edit a role ────────────────────────────────────────── -->
     <div class="modal modal-lg" id="roleModal">
-        <div class="modal-content" style="max-width:780px">
+        <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Create Role</h3>
-                <button class="modal-close" onclick="closeModal()"><i class="ph ph-x"></i></button>
+                <h3 class="modal-title" id="modalTitle">Create a role</h3>
+                <button class="modal-close" onclick="requestClose()" aria-label="Close"><i class="ph ph-x"></i></button>
             </div>
             <div class="modal-body">
-                <form id="roleForm" onsubmit="handleSaveRole(event)">
-                    <!-- Basic Info Row -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                        <div class="form-group">
-                            <label>Role Name <span style="color:var(--danger)">*</span></label>
-                            <input type="text" id="roleName" placeholder="e.g. Sales Operations – Entry" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Category <span style="color:var(--danger)">*</span></label>
-                            <select id="roleCategory" required onchange="updateDashboardSuggestion()">
-                                <option value="">Select category…</option>
-                                <option value="admin">Admin</option>
-                                <option value="sales">Sales</option>
-                                <option value="purchase">Purchase / Sourcing</option>
-                                <option value="key_accounts">Key Accounts</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom:1rem">
-                        <label>Description</label>
-                        <input type="text" id="roleDescription" placeholder="Brief description of this role's purpose">
-                    </div>
-
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
-                        <div class="form-group">
-                            <label>Dashboard Page <span style="color:var(--danger)">*</span></label>
-                            <select id="roleDashboard" required>
-                                <option value="admin.html">Admin Dashboard</option>
-                                <option value="sales.html">Sales Dashboard</option>
-                                <option value="sourcing.html">Purchase / Sourcing Dashboard</option>
-                                <option value="key-accounts.html">Key Accounts Dashboard</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Badge Colour</label>
-                            <div class="color-swatches" id="colorSwatches"></div>
-                            <input type="hidden" id="roleColor" value="#3B9FD9">
-                        </div>
-                    </div>
-
-                    <!-- Permission Groups -->
-                    <div style="margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between">
-                        <label style="font-weight:600;font-size:0.9rem">Permissions</label>
-                        <div style="display:flex;gap:0.75rem">
-                            <button type="button" class="select-all-btn" onclick="selectAllPermissions(true)">Select All</button>
-                            <button type="button" class="select-all-btn" onclick="selectAllPermissions(false)">Clear All</button>
-                        </div>
-                    </div>
-                    <div id="permissionGroups"></div>
-                </form>
+                <div class="rm-error" id="formError" role="alert"><i class="ph ph-warning-circle" style="font-size:1.1rem"></i><span id="formErrorText"></span></div>
+                <div id="editorBody"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                <button type="submit" form="roleForm" class="btn btn-primary" id="saveRoleBtn">
-                    <i class="ph ph-floppy-disk"></i> Save Role
+                <button type="button" class="btn btn-secondary" onclick="requestClose()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRoleBtn" onclick="saveRole()">
+                    <i class="ph ph-floppy-disk"></i> <span id="saveLabel">Save role</span>
                 </button>
             </div>
         </div>
     </div>
 
     <script src="/js/auth.js"></script>
+    <script src="/js/ui.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/role-management.js"></script>
 </body>

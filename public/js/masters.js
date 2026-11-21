@@ -21,13 +21,14 @@ const masterConfigs = {
             { name: 'specification', label: 'Specification', type: 'text', required: false },
             { name: 'description', label: 'Description', type: 'textarea', required: false }
         ],
-        columns: ['Material Name', 'UOM', 'Brand', 'HSN/SAC', 'Specification', 'Actions'],
+        columns: ['Material Name', 'UOM', 'Brand', 'HSN/SAC', 'Specification', 'Default price', 'Actions'],
         renderRow: (item) => [
             escapeHtml(item.materialName),
             escapeHtml(item.uom),
             escapeHtml(item.brand || '-'),
             escapeHtml(item.hsnCode || '-'),
-            escapeHtml(item.specification || '-')
+            escapeHtml(item.specification || '-'),
+            defaultPriceCell(item)
         ]
     },
     employees: {
@@ -120,6 +121,139 @@ function phoneCell(phone) {
     if (!text) return '-';
     const dial = text.replace(/[^\d+]/g, '');
     return dial ? `<a href="tel:${escapeHtml(dial)}" style="color:inherit;white-space:nowrap">${escapeHtml(text)}</a>` : escapeHtml(text);
+}
+
+// ── Default vendor + price (rate contract) ─────────────────────────────────────
+
+const isoDay = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
+const defaultPriceExpired = (m) => m.defaultPriceValidUntil && isoDay(m.defaultPriceValidUntil) < isoDay(new Date());
+
+function defaultPriceCell(m) {
+    if (!m.defaultVendorId) return '<span class="text-muted">—</span>';
+    const vendor = escapeHtml((m.defaultVendorId && m.defaultVendorId.name) || 'Vendor removed');
+    const until = m.defaultPriceValidUntil ? `until ${escapeHtml(formatDay(m.defaultPriceValidUntil))}` : 'no end date';
+    return `<div style="line-height:1.35">
+        <strong>${escapeHtml(unitPrice(m.defaultPrice))}</strong> / ${escapeHtml(m.uom)}${m.defaultFreight ? ` <span class="text-muted">+ ${escapeHtml(unitPrice(m.defaultFreight))} freight</span>` : ''}
+        <div style="font-size:0.75rem;color:var(--text-muted)">${vendor} · ${defaultPriceExpired(m) ? '<span style="color:#b91c1c;font-weight:600">ended</span>' : until}</div>
+    </div>`;
+}
+
+// Unit prices keep their paise (₹61.50 is not ₹62)
+const unitPrice = (n) => formatUnitPrice(n);
+
+function formatDay(value) {
+    return new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+let defaultPriceVendors = null;
+let defaultPriceMaterialId = null;
+
+async function openDefaultPrice(id) {
+    const material = allData.find(m => String(m._id) === String(id));
+    if (!material) { showToast('That material is no longer in the list. Refresh and try again.', 'error'); return; }
+    defaultPriceMaterialId = material._id;
+    if (!defaultPriceVendors) {
+        try { defaultPriceVendors = await apiCall('/vendors'); } catch (e) { if (!e.handled) showToast(e.message || 'Could not load vendors', 'error'); return; }
+    }
+
+    let modal = document.getElementById('defaultPriceModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'defaultPriceModal';
+        modal.className = 'modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        document.body.appendChild(modal);
+    }
+    const current = material.defaultVendorId ? String(material.defaultVendorId._id || material.defaultVendorId) : '';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:480px">
+        <div class="modal-header">
+          <h3 class="modal-title"><i class="ph ph-tag"></i> Default price</h3>
+          <button class="close-btn" onclick="closeDefaultPrice()" aria-label="Close">&times;</button>
+        </div>
+        <div style="padding:1.25rem 1.5rem">
+          <p style="margin:0 0 1rem;font-weight:600">${escapeHtml(material.materialName)} <span class="text-muted" style="font-weight:400">(${escapeHtml(material.uom)}${material.brand ? ' · ' + escapeHtml(material.brand) : ''})</span></p>
+          <div class="alert alert-info" style="margin-bottom:1rem"><i class="ph ph-info"></i>
+            <span>New enquiries for this material get this vendor price straight away and skip the purchase queue. Sales then sets the selling price as usual.</span></div>
+          <div class="form-group mb-3">
+            <label for="dpVendor">Vendor *</label>
+            <select id="dpVendor">
+              <option value="">Choose the vendor…</option>
+              ${defaultPriceVendors.map(v => `<option value="${escapeHtml(v._id)}" ${String(v._id) === current ? 'selected' : ''}>${escapeHtml(v.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+            <div class="form-group mb-3">
+              <label for="dpPrice">Price per ${escapeHtml(material.uom)} (₹) *</label>
+              <input type="number" id="dpPrice" min="0" step="any" value="${material.defaultPrice ?? ''}">
+            </div>
+            <div class="form-group mb-3">
+              <label for="dpFreight">Freight per order (₹)</label>
+              <input type="number" id="dpFreight" min="0" step="any" value="${material.defaultFreight || ''}" placeholder="0">
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <label for="dpUntil">Valid until</label>
+            <input type="date" id="dpUntil" value="${isoDay(material.defaultPriceValidUntil)}" min="${isoDay(new Date())}">
+            <small class="text-muted">Leave empty for no end date. After this day, enquiries go to purchase again.</small>
+          </div>
+        </div>
+        <div class="flex gap-2" style="padding:0 1.5rem 1.5rem;justify-content:space-between">
+          <div>${current ? '<button class="btn btn-danger btn-sm" onclick="removeDefaultPrice()"><i class="ph ph-trash"></i> Remove default price</button>' : ''}</div>
+          <div class="flex gap-2">
+            <button class="btn btn-secondary" onclick="closeDefaultPrice()">Cancel</button>
+            <button class="btn btn-primary" id="dpSave" onclick="saveDefaultPrice()"><i class="ph ph-check"></i> Save</button>
+          </div>
+        </div>
+      </div>`;
+    modal.classList.add('active');
+    setTimeout(() => document.getElementById(current ? 'dpPrice' : 'dpVendor')?.focus(), 60);
+}
+
+function closeDefaultPrice() {
+    document.getElementById('defaultPriceModal')?.classList.remove('active');
+}
+
+function replaceMaterial(updated) {
+    const i = allData.findIndex(m => String(m._id) === String(updated._id));
+    if (i >= 0) allData[i] = updated;
+    filterData();
+}
+
+async function saveDefaultPrice() {
+    const vendorId = document.getElementById('dpVendor').value;
+    const price = document.getElementById('dpPrice').value;
+    if (!vendorId) { showToast('Choose the vendor this price is from', 'error'); return; }
+    if (!(Number(price) > 0)) { showToast('Enter a price greater than 0', 'error'); return; }
+    const button = document.getElementById('dpSave');
+    button.disabled = true;
+    try {
+        const updated = await apiCall(`/products/${defaultPriceMaterialId}/default-price`, {
+            method: 'PUT',
+            body: JSON.stringify({ vendorId, price, freight: document.getElementById('dpFreight').value, validUntil: document.getElementById('dpUntil').value || null }),
+        });
+        replaceMaterial(updated);
+        closeDefaultPrice();
+        showToast(`Default price saved. New enquiries for "${updated.materialName}" will be priced automatically.`, 'success');
+    } catch (error) {
+        if (!error.handled) showToast(error.message || 'Could not save the default price', 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function removeDefaultPrice() {
+    const ok = await confirmDialog({ title: 'Remove the default price?', message: 'New enquiries for this material will go to the purchase team again. Enquiries already priced keep their price.', confirmLabel: 'Remove', danger: true });
+    if (!ok) return;
+    try {
+        const updated = await apiCall(`/products/${defaultPriceMaterialId}/default-price`, { method: 'DELETE' });
+        replaceMaterial({ ...updated, defaultVendorId: null });
+        closeDefaultPrice();
+        showToast('Default price removed', 'success');
+    } catch (error) {
+        if (!error.handled) showToast(error.message || 'Could not remove the default price', 'error');
+    }
 }
 
 // ── Initialize ──────────────────────────────────────────────────────────────
@@ -237,6 +371,9 @@ function renderTable() {
                     <div class="flex gap-2">
                         ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="editItem('${escapeHtml(item._id)}')">
                             <i class="ph ph-pencil-simple"></i> Edit
+                        </button>` : ''}
+                        ${canEdit && masterType === 'materials' ? `<button class="btn btn-secondary btn-sm" onclick="openDefaultPrice('${escapeHtml(item._id)}')" title="A vendor and price used automatically on new enquiries">
+                            <i class="ph ph-tag"></i> Default price
                         </button>` : ''}
                         ${canEdit && masterType === 'employees' ? `<button class="btn btn-secondary btn-sm" onclick="toggleEmployeeAccess('${escapeHtml(item._id)}')" title="${item.active === false ? 'Let this person sign in again' : 'Stop this person signing in, but keep their history'}">
                             <i class="ph ${item.active === false ? 'ph-play-circle' : 'ph-pause-circle'}"></i> ${item.active === false ? 'Turn on' : 'Turn off'}

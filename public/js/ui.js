@@ -336,3 +336,11 @@ function fillUomSuggestions(datalistId, products) {
         new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     });
 })();
+
+
+// A price per unit keeps its paise (₹372.50, not ₹373); totals elsewhere are shown in whole rupees
+function formatUnitPrice(amount) {
+    const n = Number(amount) || 0;
+    const whole = Math.abs(n - Math.round(n)) < 0.005;
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 }).format(n);
+}

@@ -92,6 +92,13 @@ const productSchema = new mongoose.Schema({
     hsnCode: { type: String, trim: true },
     brand: { type: String, trim: true },
     specification: { type: String, trim: true },
+    // Default vendor + price ("rate contract"): enquiries for this material get this quote at once, without purchase
+    defaultVendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', default: null },
+    defaultPrice: { type: Number, min: [0, 'Default price cannot be negative'] },
+    defaultFreight: { type: Number, default: 0, min: [0, 'Freight cannot be negative'] },
+    defaultPriceValidUntil: { type: Date, default: null }, // empty = no end date
+    defaultPriceSetBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    defaultPriceSetAt: { type: Date },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -149,7 +156,8 @@ const vendorQuotationSchema = new mongoose.Schema({
     enteredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     enteredAt: { type: Date, default: Date.now },
     notes: { type: String },
-    isCheapest: { type: Boolean, default: false }
+    isCheapest: { type: Boolean, default: false },
+    isDefaultPrice: { type: Boolean, default: false } // entered automatically from the material's default vendor + price
 });
 
 const notificationSchema = new mongoose.Schema({

@@ -303,7 +303,7 @@ function renderMaterialView() {
                     <i class="ph ph-list-checks"></i> View
                   </button>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
               </td>
-              <td>${item.salesPrice ? formatCurrency(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
+              <td>${item.salesPrice ? formatUnitPrice(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
               <td>
                 ${getStatusBadge(item.status)}
                 ${isQuery ? `<div style="font-size:0.68rem;color:#92400e;background:#fef3c7;padding:0.1rem 0.35rem;border-radius:0.2rem;font-weight:600;margin-top:0.2rem;display:inline-flex;align-items:center;gap:0.2rem"><i class="ph ph-warning-circle"></i> Response needed</div>` : ''}
@@ -446,7 +446,7 @@ function renderItemsView() {
                 <i class="ph ph-list-checks"></i> View
               </button>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
           </td>
-          <td>${item.salesPrice ? formatCurrency(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
+          <td>${item.salesPrice ? formatUnitPrice(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
           <td>${getStatusBadge(item.status)}</td>
           <td>
             <div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center">
@@ -790,7 +790,7 @@ function renderItems(enquiry) {
                 <i class="ph ph-list-checks"></i> View
               </button>` : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}
           </td>
-          <td>${item.salesPrice ? formatCurrency(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
+          <td>${item.salesPrice ? formatUnitPrice(item.salesPrice) : '<span style="color:var(--text-muted);font-size:0.8rem">—</span>'}</td>
           <td>${getStatusBadge(item.status)}</td>
           <td>
             <div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center">
@@ -939,6 +939,14 @@ function populateProductSelect() {
     // The search functionality is handled by handleProductSearch
 }
 
+// A material with a usable default vendor + price is quoted automatically when the enquiry is created
+function hasDefaultPrice(p) {
+    if (!p || !p.defaultVendorId || !(p.defaultPrice >= 0)) return false;
+    if (!p.defaultPriceValidUntil) return true;
+    return new Date(p.defaultPriceValidUntil).toISOString().slice(0, 10) >= new Date().toISOString().slice(0, 10);
+}
+const DEFAULT_PRICE_TAG = '<span class="enq-chip chip-quoted" style="font-size:0.68rem;padding:0.05rem 0.45rem" title="Priced automatically from the default vendor; skips the purchase queue"><i class="ph ph-tag"></i> Default price</span>';
+
 // Product Search & Autocomplete
 function handleProductSearch(query) {
     const resultsContainer = document.getElementById('productSearchResults');
@@ -980,7 +988,7 @@ function handleProductSearch(query) {
             <div class="autocomplete-item" data-id="${escapeHtml(p._id)}" data-name="${escapeHtml(p.materialName)}"
                  onclick="selectProduct(this.dataset.id, this.dataset.name)">
                 <span class="material-name">${escapeHtml(p.materialName)}</span>
-                <span class="material-details">${escapeHtml(p.brand || 'Generic')} • ${escapeHtml(p.uom)}</span>
+                <span class="material-details">${escapeHtml(p.brand || 'Generic')} • ${escapeHtml(p.uom)} ${hasDefaultPrice(p) ? DEFAULT_PRICE_TAG : ''}</span>
             </div>
         `).join('') + addNewItem(`Add "${safeQuery}" as new product...`);
     }
@@ -1197,6 +1205,7 @@ function renderCart() {
           <div style="min-width:0;flex:1">
             <strong>${escapeHtml(item.product.materialName)}</strong>
             ${item.product.brand ? `<span class="text-muted"> · ${escapeHtml(item.product.brand)}</span>` : ''}
+            ${hasDefaultPrice(item.product) ? ' ' + DEFAULT_PRICE_TAG : ''}
           </div>
           <input type="number" min="0" step="any" value="${item.quantity}" aria-label="Quantity of ${escapeHtml(item.product.materialName)}"
             onchange="updateCartQty(${index}, this.value)" style="width:90px;padding:0.35rem 0.5rem;border-radius:0.4rem;text-align:right">
@@ -1253,9 +1262,16 @@ async function createEnquiry() {
         closeNewEnquiryModal();
         renderEnquiries();
 
-        if (hasPermission('enquiry.assign')) {
-            showToast('Enquiry created! Assign to sourcing below.', 'success');
+        const auto = enquiry.autoPriced || 0;
+        const total = (enquiry.items || []).length;
+        if (auto && auto === total) {
+            // nothing for purchase to do: every item already has its default vendor price
+            showToast(`Enquiry created. ${auto === 1 ? 'The item was' : `All ${auto} items were`} priced from default prices — set your selling price next.`, 'success');
+        } else if (hasPermission('enquiry.assign')) {
+            showToast(auto ? `Enquiry created. ${auto} of ${total} items priced from default prices; assign the rest to sourcing below.` : 'Enquiry created! Assign to sourcing below.', 'success');
             showAssignModal(enquiry._id, true);
+        } else if (auto) {
+            showToast(`Enquiry created. ${auto} of ${total} items priced from default prices; the purchase team has been told about the rest.`, 'success');
         } else {
             showToast('Enquiry created! Managers and sourcing team have been notified.', 'success');
         }
@@ -1641,11 +1657,11 @@ async function showSalesPriceModal(enquiryId, itemId) {
                     onchange="updateCostPrice(this.getAttribute('data-price')); this.closest('.radio-option').classList.add('selected'); document.querySelectorAll('.radio-option').forEach(r => { if (r !== this.closest('.radio-option')) r.classList.remove('selected'); });">
                   <div class="radio-content" style="flex: 1;">
                     <div class="flex-between mb-2">
-                      <strong style="font-size: 1rem;"><i class="ph ph-storefront"></i> ${escapeHtml(q.vendorId?.name) || 'Unknown Vendor'}</strong>
+                      <strong style="font-size: 1rem;"><i class="ph ph-storefront"></i> ${escapeHtml(q.vendorId?.name) || 'Unknown Vendor'}</strong>${q.isDefaultPrice ? ' ' + DEFAULT_PRICE_TAG : ''}
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; font-size: 0.875rem; color: var(--text-muted);">
                       <div>
-                        <i class="ph ph-currency-inr"></i> Unit: <strong>${formatCurrency(q.vendorPrice)}</strong>
+                        <i class="ph ph-currency-inr"></i> Unit: <strong>${formatUnitPrice(q.vendorPrice)}</strong>
                       </div>
                       <div>
                         <i class="ph ph-package"></i> Qty: <strong>${item.quantity}</strong>
@@ -1851,13 +1867,13 @@ async function viewItemQuotes(itemId) {
                 return `
                 <div class="card mb-2" style="padding: 1rem;">
                     <div class="flex-between mb-2">
-                        <h5><i class="ph ph-building"></i> ${escapeHtml(q.vendorId?.name) || 'Unknown Vendor'}</h5>
+                        <h5><i class="ph ph-building"></i> ${escapeHtml(q.vendorId?.name) || 'Unknown Vendor'}${q.isDefaultPrice ? ' ' + DEFAULT_PRICE_TAG : ''}</h5>
                         <span class="badge badge-pending">Quote ${idx + 1}</span>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
                         <div>
                             <span class="detail-label">Unit Price</span>
-                            <div class="detail-value text-primary">${formatCurrency(q.vendorPrice)}</div>
+                            <div class="detail-value text-primary">${formatUnitPrice(q.vendorPrice)}</div>
                         </div>
                         <div>
                             <span class="detail-label">Quantity</span>

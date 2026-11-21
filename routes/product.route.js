@@ -1,9 +1,10 @@
 const express = require('express');
-const { Product, EnquiryItem } = require('../db');
+const { Product, EnquiryItem, Vendor } = require('../db');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const { handleRouteError } = require('../middleware/errors');
 const { audit } = require('../utils/audit');
-const { isValidId, cleanString, escapeRegex } = require('../middleware/validate');
+const { isValidId, cleanString, escapeRegex, toPositive, toNonNegative } = require('../middleware/validate');
+const { inr } = require('../utils/audit');
 
 // "Acme  Traders" and "Acme Traders" are one name
 const cleanName = (value) => { const text = cleanString(value); return text && text.replace(/\s+/g, ' '); };
@@ -28,7 +29,7 @@ const duplicateProduct = async ({ materialName, uom, brand }, exceptId) => {
 // GET /api/products
 router.get('/', authenticateToken, requirePermission('material.view'), async (req, res) => {
     try {
-        const products = await Product.find().sort({ materialName: 1 });
+        const products = await Product.find().sort({ materialName: 1 }).populate('defaultVendorId', 'name');
         res.json(products);
     } catch (error) {
         handleRouteError(res, error, 'product');
@@ -90,6 +91,65 @@ router.put('/:id', authenticateToken, requirePermission('material.edit'), async 
         res.json(product);
     } catch (error) {
         handleRouteError(res, error, 'product');
+    }
+});
+
+// PUT /api/products/:id/default-price — set the default vendor + price (rate contract) for a material.
+// Enquiries for it then get this vendor quote automatically and skip the purchase queue.
+router.put('/:id/default-price', authenticateToken, requirePermission('material.edit'), async (req, res) => {
+    try {
+        if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Invalid product id' });
+        const { vendorId } = req.body || {};
+        if (!isValidId(vendorId)) return res.status(400).json({ error: 'Choose the vendor this price is from' });
+        const price = toPositive(req.body.price);
+        if (Number.isNaN(price)) return res.status(400).json({ error: 'Enter a price greater than 0' });
+        const freight = req.body.freight === undefined || req.body.freight === null || req.body.freight === '' ? 0 : toNonNegative(req.body.freight);
+        if (Number.isNaN(freight)) return res.status(400).json({ error: 'Freight must be a number (0 or more)' });
+
+        let validUntil = null;
+        if (req.body.validUntil) {
+            if (typeof req.body.validUntil !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(req.body.validUntil) || Number.isNaN(Date.parse(req.body.validUntil))) {
+                return res.status(400).json({ error: 'The end date is not a valid date' });
+            }
+            validUntil = new Date(req.body.validUntil);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            if (validUntil < today) return res.status(400).json({ error: 'The end date has already passed' });
+        }
+
+        const [product, vendor] = await Promise.all([Product.findById(req.params.id), Vendor.findById(vendorId).select('name')]);
+        if (!product) return res.status(404).json({ error: 'Product not found' });
+        if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
+
+        Object.assign(product, {
+            defaultVendorId: vendor._id, defaultPrice: price, defaultFreight: freight, defaultPriceValidUntil: validUntil,
+            defaultPriceSetBy: req.user.id, defaultPriceSetAt: new Date(),
+        });
+        await product.save();
+        await audit(req, {
+            action: 'material.default_price_set', entity: 'material', entityId: product._id, entityLabel: product.materialName,
+            summary: `Set the default price of "${product.materialName}" to ${inr(price)} per ${product.uom}${freight ? ` (+${inr(freight)} freight)` : ''} from ${vendor.name}${validUntil ? ` until ${validUntil.toISOString().slice(0, 10)}` : ''}`,
+            details: { vendorId: String(vendor._id), price, freight, validUntil },
+        });
+        res.json(await Product.findById(product._id).populate('defaultVendorId', 'name'));
+    } catch (error) {
+        handleRouteError(res, error, 'default price');
+    }
+});
+
+// DELETE /api/products/:id/default-price — stop using a default price (enquiries go to purchase again)
+router.delete('/:id/default-price', authenticateToken, requirePermission('material.edit'), async (req, res) => {
+    try {
+        if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Invalid product id' });
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ error: 'Product not found' });
+        if (product.defaultVendorId) {
+            product.set({ defaultVendorId: null, defaultPrice: undefined, defaultFreight: 0, defaultPriceValidUntil: null, defaultPriceSetBy: req.user.id, defaultPriceSetAt: new Date() });
+            await product.save();
+            await audit(req, { action: 'material.default_price_removed', entity: 'material', entityId: product._id, entityLabel: product.materialName, summary: `Removed the default price of "${product.materialName}"` });
+        }
+        res.json(product);
+    } catch (error) {
+        handleRouteError(res, error, 'default price');
     }
 });
 

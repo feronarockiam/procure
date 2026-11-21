@@ -1773,7 +1773,7 @@ async function viewQuotes(itemId) {
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 0.75rem;">
               <div>
                 <span class="detail-label">Unit Price</span>
-                <div class="detail-value">${formatCurrency(quote.vendorPrice)}</div>
+                <div class="detail-value">${formatUnitPrice(quote.vendorPrice)}</div>
               </div>
               <div>
                 <span class="detail-label">Quantity</span>

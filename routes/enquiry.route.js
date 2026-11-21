@@ -7,6 +7,7 @@ const { createEnquiryWithNumber } = require('../utils/enquiryNumber');
 const { effectiveLanding, allowedLinks } = require('../constants/permissions');
 const { audit, inr } = require('../utils/audit');
 
+const { applyDefaultPrices } = require('../utils/defaultPrice');
 const router = express.Router();
 
 const STAGES = ['new', 'open', 'updated', 'completed'];
@@ -417,6 +418,9 @@ router.post('/', authenticateToken, requirePermission('enquiry.create'), async (
             throw err;
         }
 
+        // Materials with a default vendor + price are quoted at once and skip the purchase queue
+        const autoPriced = await applyDefaultPrices(enquiry._id, { userId: req.user.id });
+
         const populated = await Enquiry.findById(enquiry._id)
             .populate('createdBy', 'name email')
             .populate('assignedTo', 'name email')
@@ -426,19 +430,22 @@ router.post('/', authenticateToken, requirePermission('enquiry.create'), async (
             .populate('productId')
             .populate('assignedTo', 'name email');
 
-        await notifyNewEnquiry({
-            enquiry,
-            creatorId: req.user.id,
-            customerName: populated.customerId?.name || 'Unknown customer',
-            creatorName: populated.createdBy?.name || 'Someone',
-        });
+        // Nothing to tell purchase about when every item already has its default price
+        if (autoPriced.length < lines.length) {
+            await notifyNewEnquiry({
+                enquiry,
+                creatorId: req.user.id,
+                customerName: populated.customerId?.name || 'Unknown customer',
+                creatorName: populated.createdBy?.name || 'Someone',
+            });
+        }
 
         await audit(req, {
             action: 'enquiry.created', entity: 'enquiry', entityId: enquiry._id, entityLabel: enquiry.enquiryNumber, enquiryId: enquiry._id,
-            summary: `Created enquiry ${enquiry.enquiryNumber} for ${populated.customerId?.name || 'a customer'} with ${plural(lines.length, 'item')}`,
+            summary: `Created enquiry ${enquiry.enquiryNumber} for ${populated.customerId?.name || 'a customer'} with ${plural(lines.length, 'item')}${autoPriced.length ? ` (${autoPriced.length} priced from default prices)` : ''}`,
         });
 
-        res.status(201).json({ ...populated.toObject(), items: populatedItems });
+        res.status(201).json({ ...populated.toObject(), items: populatedItems, autoPriced: autoPriced.length });
     } catch (error) {
         handleRouteError(res, error, 'create enquiry');
     }

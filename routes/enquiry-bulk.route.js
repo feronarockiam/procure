@@ -1,4 +1,5 @@
 const express = require('express');
+const { applyDefaultPrices } = require('../utils/defaultPrice');
 const router = express.Router();
 const { Enquiry, EnquiryItem, Product, Customer, User } = require('../db');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
@@ -244,6 +245,7 @@ router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_c
 
         const created = [];
         const failed = [];
+        let autoPriced = 0; // items quoted straight away from a material's default price
         const purchaseIds = new Set((await usersWithPermission('purchase_price.add', { select: '_id', populate: 'name' })).map(u => String(u._id)));
 
         for (const enq of enquiries) {
@@ -326,6 +328,9 @@ router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_c
                     throw err;
                 }
 
+                // Same as single creation: materials with a default vendor + price are quoted at once
+                autoPriced += (await applyDefaultPrices(newEnquiry._id, { userId: req.user.id })).length;
+
                 created.push(newEnquiry.enquiryNumber);
 
             } catch (error) {
@@ -340,7 +345,8 @@ router.post('/bulk/create', authenticateToken, requirePermission('enquiry.bulk_c
             summary: {
                 total: enquiries.length,
                 successful: created.length,
-                failed: failed.length
+                failed: failed.length,
+                autoPriced,
             }
         });
 

@@ -365,6 +365,13 @@ router.delete('/:id', authenticateToken, requirePermission('vendor.delete'), asy
                 error: `Cannot delete: this vendor has ${quoteCount} quotation${quoteCount === 1 ? '' : 's'} on record.`,
             });
         }
+        // Materials that use this vendor for their default price would quietly stop being priced automatically
+        const defaultFor = await Product.find({ defaultVendorId: req.params.id }).select('materialName').limit(3).lean();
+        if (defaultFor.length) {
+            return res.status(409).json({
+                error: `Cannot delete: this vendor is the default price for ${defaultFor.map(p => `"${p.materialName}"`).join(', ')}${defaultFor.length === 3 ? ' and maybe more' : ''}. Remove or change those default prices first.`,
+            });
+        }
 
         const vendor = await Vendor.findByIdAndDelete(req.params.id);
         if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
